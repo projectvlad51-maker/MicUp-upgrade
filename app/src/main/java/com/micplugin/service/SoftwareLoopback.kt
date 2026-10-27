@@ -19,9 +19,32 @@ object SoftwareLoopback {
     private var workerThread:  Thread?       = null
     private var audioManager:  AudioManager? = null
     private var selectedDeviceId: Int        = -1
-    private var monitorEnabled:   Boolean    = true
-    private var running = false
+    @Volatile private var monitorEnabled:   Boolean    = true
+    @Volatile private var running = false
     private var focusRequest: AudioFocusRequest? = null
+    private var voipMode = false
+    private var previousAudioMode: Int? = null
+
+    fun setVoipMode(context: Context, enabled: Boolean) {
+        if (voipMode == enabled) return
+        val restart = running
+        if (restart) stop()
+        voipMode = enabled
+        if (restart) start(context)
+    }
+
+    private fun playbackAttributes(): AudioAttributes = AudioAttributes.Builder()
+        .setUsage(if (voipMode) AudioAttributes.USAGE_VOICE_COMMUNICATION else AudioAttributes.USAGE_MEDIA)
+        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+        .build()
+
+    private fun restoreAudioMode() {
+        val previous = previousAudioMode ?: return
+        try {
+            if (audioManager?.mode == AudioManager.MODE_IN_COMMUNICATION) audioManager?.mode = previous
+        } catch (e: Exception) { Log.e(TAG, "Cannot restore audio mode", e) }
+        previousAudioMode = null
+    }
 
     // Lock-free float queue — audio callback offers, worker thread drains
     private val queue = ArrayBlockingQueue<FloatArray>(QUEUE_CAP)
@@ -43,7 +66,19 @@ object SoftwareLoopback {
         monitorTrack = buildMonitorTrack(minBuf)
         if (monitorTrack == null) { Log.e(TAG, "AudioTrack init failed"); return }
 
-        monitorTrack!!.play()
+        try {
+            if (voipMode) {
+                previousAudioMode = audioManager?.mode
+                audioManager?.mode = AudioManager.MODE_IN_COMMUNICATION
+            }
+            monitorTrack!!.play()
+        } catch (e: Exception) {
+            Log.e(TAG, "Cannot start playback", e)
+            monitorTrack?.release()
+            monitorTrack = null
+            restoreAudioMode()
+            return
+        }
         monitorTrack!!.setVolume(if (monitorEnabled) 1f else 0f)
 
         running = true
@@ -84,7 +119,7 @@ object SoftwareLoopback {
         try { monitorTrack?.stop(); monitorTrack?.release() } catch (_: Exception) {}
         monitorTrack = null
         abandonAudioFocus()
-        try { @Suppress("DEPRECATION") audioManager?.mode = AudioManager.MODE_NORMAL } catch (_: Exception) {}
+        restoreAudioMode()
         Log.i(TAG, "SoftwareLoopback stopped")
     }
 
@@ -180,9 +215,7 @@ object SoftwareLoopback {
         }
         if (Build.VERSION.SDK_INT >= 26) {
             focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
-                .setAudioAttributes(AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_MEDIA)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
+                .setAudioAttributes(playbackAttributes())
                 .setOnAudioFocusChangeListener(listener)
                 .setWillPauseWhenDucked(false).build()
             am.requestAudioFocus(focusRequest!!)
@@ -204,9 +237,7 @@ object SoftwareLoopback {
     private fun buildMonitorTrack(bufSize: Int): AudioTrack? = try {
         if (Build.VERSION.SDK_INT >= 26) {
             AudioTrack.Builder()
-                .setAudioAttributes(AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_MEDIA)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
+                .setAudioAttributes(playbackAttributes())
                 .setAudioFormat(AudioFormat.Builder()
                     .setSampleRate(SAMPLE_RATE)
                     .setEncoding(FORMAT)   // PCM_FLOAT — no conversion ever

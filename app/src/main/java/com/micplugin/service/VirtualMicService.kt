@@ -15,14 +15,14 @@ enum class VirtualMicTier {
     VOIP_STREAM, MEDIA_PROJECTION, SHIZUKU_ADB, ROOT_MAGISK;
 
     val displayName: String get() = when (this) {
-        VOIP_STREAM      -> "VoIP Compatible"
-        MEDIA_PROJECTION -> "Software Loopback"
+        VOIP_STREAM      -> "VoIP Playback"
+        MEDIA_PROJECTION -> "Local Monitor"
         SHIZUKU_ADB      -> "Shizuku — ADB Level"
         ROOT_MAGISK      -> "Root Mode — System-Wide"
     }
     val description: String get() = when (this) {
-        VOIP_STREAM      -> "Processed audio routes through VoIP stream. Works with Meet, Teams, Discord, Zoom."
-        MEDIA_PROJECTION -> "Uses software audio loopback via VOICE_COMMUNICATION stream. Works on all devices without root or Shizuku."
+        VOIP_STREAM      -> "Plays processed audio using Android communication routing. Does not replace the microphone input of other apps."
+        MEDIA_PROJECTION -> "Local monitoring through the media output. Does not send processed audio to other apps as a microphone."
         SHIZUKU_ADB      -> "Uses Shizuku (ADB-level) to load ALSA loopback and route processed audio. Apps see 'MicPlugin Virtual Mic' without full root."
         ROOT_MAGISK      -> "Magisk module creates /dev/snd/virtual_mic via ALSA loopback. All apps see MicPlugin as a separate hardware device."
     }
@@ -100,7 +100,26 @@ class VirtualMicService @Inject constructor(
     private val _activeTier = MutableStateFlow(VirtualMicTier.VOIP_STREAM)
     val activeTier: StateFlow<VirtualMicTier> = _activeTier
 
-    init { detectAndSetBestTier() }
+    init {
+        val saved = context.getSharedPreferences("micup_prefs", Context.MODE_PRIVATE)
+            .getString("playback_tier", null)
+        val preferred = VirtualMicTier.values().firstOrNull { it.name == saved }
+        if (preferred == VirtualMicTier.VOIP_STREAM || preferred == VirtualMicTier.MEDIA_PROJECTION) {
+            _activeTier.value = preferred
+        } else {
+            detectAndSetBestTier()
+        }
+        SoftwareLoopback.setVoipMode(context, _activeTier.value == VirtualMicTier.VOIP_STREAM)
+    }
+
+    /** Local playback routes only; these do not create a system microphone. */
+    fun selectPlaybackTier(tier: VirtualMicTier) {
+        if (tier != VirtualMicTier.VOIP_STREAM && tier != VirtualMicTier.MEDIA_PROJECTION) return
+        SoftwareLoopback.setVoipMode(context, tier == VirtualMicTier.VOIP_STREAM)
+        _activeTier.value = tier
+        context.getSharedPreferences("micup_prefs", Context.MODE_PRIVATE).edit()
+            .putString("playback_tier", tier.name).apply()
+    }
 
     private fun detectAndSetBestTier() {
         _activeTier.value = when {

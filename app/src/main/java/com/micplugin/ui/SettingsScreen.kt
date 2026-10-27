@@ -1,6 +1,8 @@
 package com.micplugin.ui
 
 import androidx.compose.foundation.*
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -126,6 +128,8 @@ fun SettingsScreen(navController: NavController, vm: AudioViewModel = hiltViewMo
                     TierRow(
                         tier     = t,
                         isActive = t == tier,
+                        onSelect = if (t == VirtualMicTier.VOIP_STREAM || t == VirtualMicTier.MEDIA_PROJECTION)
+                            ({ vm.selectPlaybackTier(t) }) else null,
                         isLocked = when (t) {
                             VirtualMicTier.SHIZUKU_ADB -> shizukuState != ShizukuState.READY
                             VirtualMicTier.ROOT_MAGISK -> !com.micplugin.service.VirtualMicService.isRooted()
@@ -254,8 +258,14 @@ private fun SettingsActionRow(label: String, icon: androidx.compose.ui.graphics.
 }
 
 @Composable
-private fun TierRow(tier: VirtualMicTier, isActive: Boolean, isLocked: Boolean) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+internal fun TierRow(
+    tier: VirtualMicTier,
+    isActive: Boolean,
+    isLocked: Boolean,
+    onSelect: (() -> Unit)? = null,
+) {
+    val select = onSelect?.takeUnless { isLocked }
+    Row(Modifier.fillMaxWidth().then(if (select != null) Modifier.selectable(selected = isActive, role = Role.RadioButton, onClick = select) else Modifier), verticalAlignment = Alignment.CenterVertically) {
         RadioButton(selected = isActive, onClick = null,
             colors = RadioButtonDefaults.colors(selectedColor = Color(tier.badgeColorHex)))
         Spacer(Modifier.width(6.dp))

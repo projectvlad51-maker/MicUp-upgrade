@@ -267,6 +267,8 @@ class AudioViewModel @Inject constructor(
 
     fun rescan() { viewModelScope.launch { pluginManager.scanAll() } }
 
+    fun selectPlaybackTier(tier: VirtualMicTier) = virtualMicService.selectPlaybackTier(tier)
+
     fun requestShizukuPermission() { shizukuManager.requestPermission() }
 
     val lv2Paths  = pluginPathPrefs.lv2Paths

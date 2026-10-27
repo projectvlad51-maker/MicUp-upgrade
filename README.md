@@ -16,7 +16,7 @@
 
 ## What is MicUp?
 
-MicUp is a real-time microphone processing app for Android. It captures your mic input, runs it through a DSP effects chain, and routes the processed audio to a virtual microphone — so every app on your phone (Discord, Teams, Zoom, WhatsApp, etc.) hears the cleaned-up, processed version of your voice.
+MicUp is a real-time microphone processing app for Android. It captures your mic input, runs it through a DSP effects chain, and plays the processed audio for local monitoring. You can select media playback or Android communication playback. This app does not currently provide a virtual microphone input to other apps such as Discord, Teams, Zoom, or WhatsApp.
 
 No PC required. No monthly subscription.
 
@@ -27,9 +27,9 @@ No PC required. No monthly subscription.
 -  **Built-in DSP chain** — Noise Gate, 10-band EQ, Compressor, Reverb, Pitch Shifter
 -  **Plugin support** — Load LV2, CLAP, and VST3 native plugins (`.so`, `.clap`, `.lv2`)
 -  **Open plugin files** — Tap a plugin file in your file manager to import it directly
--  **Monitor toggle** — Hear your processed audio through headphones, or silence it while still routing to other apps
+-  **Monitor toggle** — Hear your processed audio through headphones, or silence local playback
 -  **Shizuku support** — ADB-level ALSA loopback routing without full root
--  **Three virtual mic tiers** — VoIP stream (no root), Shizuku (ADB), or Magisk (full root)
+-  **Selectable playback modes** — Local Monitor or VoIP Playback; experimental Shizuku/root routing does not guarantee a system virtual microphone
 -  **Live VU meters** — Input, output, and gain reduction metering
 -  **Preset system** — Save and load your effect configurations
 -  **Built-in crash reporter** — Crash logs auto-shared for easy bug reporting
@@ -52,7 +52,7 @@ No Play Store. No sign-in. Just install and go.
 2. Grant microphone permission when prompted
 3. Tap the **power button** to start audio processing
 4. Adjust effects with the sliders and knobs
-5. In your call/meeting app, select **MicUp** or the VoIP audio stream as your microphone
+5. In Settings, select **Local Monitor** or **VoIP Playback**, then use the power button to start audio. These modes control playback; they do not replace another app’s microphone input
 
 ### Loading Plugins
 
