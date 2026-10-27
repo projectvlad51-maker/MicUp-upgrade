@@ -8,6 +8,7 @@ plugins {
 
 android {
     namespace = "com.micplugin"
+    sourceSets.getByName("main").java.srcDir(rootProject.file("shared/audio"))
     compileSdk = 34
     ndkVersion = "26.3.11579264"
 

@@ -1,0 +1,78 @@
+[
+  {
+    "tag": "upstream-archive-v1.0.6",
+    "title": "MicUp 1.0.6 — исходный архив",
+    "source_ref": "a6e87db3e12cbf3d79d695c1a28d5c2fcaed88a8",
+    "notes": "docs/releases/upstream-archive-v1.0.6.md"
+  },
+  {
+    "tag": "micup-v1.0.7",
+    "title": "MicUp 1.0.7",
+    "source_ref": "cf3b3e6436492cc349457bef393f3274fa01b096",
+    "notes": "docs/releases/micup-v1.0.7.md",
+    "artifact_ref": "8e825f57964da41ec52da7115126711b0fbfef8e",
+    "artifact_name": "MicUp-1.0.7-compressor-fix-debug.apk",
+    "sha256": "edca8e2f9f30159784dcd1a0e142b6750380215605de8639a8b41ac602ee4f75",
+    "size": 21143095
+  },
+  {
+    "tag": "micup-v1.0.8",
+    "title": "MicUp 1.0.8",
+    "source_ref": "de9b372fad5bb7ecafea9a54708bf520db88111b",
+    "notes": "docs/releases/micup-v1.0.8.md",
+    "artifact_ref": "06d66902329a346a2c419ef6abb1cf10db7cacaf",
+    "artifact_name": "MicUp-1.0.8-voip-fix-debug.apk",
+    "sha256": "fac752d9ad63754cd75c65b5071d2f9384182391e920237932abebb80ba4e657",
+    "size": 21172338
+  },
+  {
+    "tag": "micup-v1.0.9",
+    "title": "MicUp 1.0.9",
+    "source_ref": "9882f7635354836713615a4dc74f91bdb3a67a76",
+    "notes": "docs/releases/micup-v1.0.9.md",
+    "artifact_ref": "eb03688e8334ee538babdfa05d0211cbd2f46cc2",
+    "artifact_name": "MicUp-1.0.9-mic-boost-debug.apk",
+    "sha256": "146f752e15990d0c834c7ad6724f7ccae3b505c8473499732a4ad763b6c5fd1f",
+    "size": 21147191
+  },
+  {
+    "tag": "micup-v1.0.10",
+    "title": "MicUp 1.0.10",
+    "source_ref": "c6013223150d4a8c11b5a00be6372abb6ad4ee1b",
+    "notes": "docs/releases/micup-v1.0.10.md",
+    "artifact_ref": "661be9972318452483eec9cbd28fe383ccce6cbe",
+    "artifact_name": "MicUp-1.0.10-audio-controls-debug.apk",
+    "sha256": "888a9f5b43ad843e7ed78803967405d2f4f92e4483942154073aa81ba321a475",
+    "size": 21171771
+  },
+  {
+    "tag": "micup-v1.0.11",
+    "title": "MicUp 1.0.11",
+    "source_ref": "477ee6a91c28734b535c2889076b536801ffce3d",
+    "notes": "docs/releases/micup-v1.0.11.md",
+    "artifact_ref": "47a20e74ef67f43bc12ea4abfdffc51fe6abb1e6",
+    "artifact_name": "MicUp-1.0.11-shizuku-debug.apk",
+    "sha256": "def9226289ff9468fd55beef773b4b3a104ff9d90c69697425024a22bb5b8525",
+    "size": 21375770
+  },
+  {
+    "tag": "micup-v1.0.12",
+    "title": "MicUp 1.0.12",
+    "source_ref": "e550dc409e9ec1e843dd11787fd12e9018aacf74",
+    "notes": "docs/releases/micup-v1.0.12.md",
+    "artifact_ref": "bb2a86f2da634e56bd69437d031b3777599b18a5",
+    "artifact_name": "MicUp-1.0.12-volume-controls-debug.apk",
+    "sha256": "f919d3c2f060c5a4e8cbbff841362d4c4a2a6d2e605826b3365f830b76d98b3c",
+    "size": 21389249
+  },
+  {
+    "tag": "lite-v1.0.0",
+    "title": "MicUp Lite 1.0.0",
+    "source_ref": "lite-v1.0.0",
+    "notes": "docs/releases/lite-v1.0.0.md",
+    "artifact_ref": "f9351cfd681a6c85b1dbbe9690876cf916ab5c90",
+    "artifact_name": "MicUp-Lite-1.0.0.apk",
+    "sha256": "a5cc812f244532591fe5b79eefd32eb982b01e7765190802e0c1c0f58664847f",
+    "size": 1139721
+  }
+]

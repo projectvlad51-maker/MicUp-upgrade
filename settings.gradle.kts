@@ -21,4 +21,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "MicPlugin"
-include(":app")
+include(":app", ":lite")

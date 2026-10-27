@@ -1,0 +1,52 @@
+name: Publish version catalog
+on:
+  push:
+    tags: ['lite-v*']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: micup-version-publication
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate and publish all described versions
+        id: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/publish_releases.py --publish --stage-private
+      - name: Record publication result
+        if: always()
+        env:
+          PUBLISH_RESULT: ${{ steps.publish.outcome }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import datetime, json, os, subprocess
+          def git(*args, data=None):
+              return subprocess.check_output(['git', *args], input=data).decode().strip()
+          subprocess.run(['git','config','user.name','github-actions[bot]'],check=True)
+          subprocess.run(['git','config','user.email','41898282+github-actions[bot]@users.noreply.github.com'],check=True)
+          visibility = subprocess.run(['gh','api','repos/'+os.environ['GITHUB_REPOSITORY'],'--jq','.visibility'],capture_output=True,text=True)
+          report = {'source':git('rev-parse','HEAD'),'ref':os.environ['GITHUB_REF'],'result':os.environ['PUBLISH_RESULT'],
+              'visibility': visibility.stdout.strip() if visibility.returncode == 0 else 'unknown',
+              'time_utc':datetime.datetime.now(datetime.timezone.utc).isoformat()}
+          probe = subprocess.run(['git','ls-remote','--exit-code','origin','refs/heads/publication-status'],capture_output=True,text=True)
+          parent = []
+          if probe.returncode == 0:
+              subprocess.run(['git','fetch','origin','refs/heads/publication-status'],check=True)
+              parent = ['-p',git('rev-parse','FETCH_HEAD')]
+          elif probe.returncode != 2:
+              raise RuntimeError('Cannot inspect publication status branch')
+          blob = git('hash-object','-w','--stdin',data=(json.dumps(report,indent=2)+'\n').encode())
+          tree = git('mktree',data=f'100644 blob {blob}\tlatest.json\n'.encode())
+          commit = git('commit-tree',tree,*parent,'-m','Record version catalog publication')
+          subprocess.run(['git','push','origin',commit+':refs/heads/publication-status'],check=True)
+          print(json.dumps(report))
+          PY

@@ -1,14 +1,10 @@
 <div align="center">
 
-# 🎙️ MicUp
+# 🎙️ MicUp и MicUp Lite
 
-**Real-time microphone audio processing for Android**
+**Модифицированные сборки MicUp и отдельная лёгкая версия для Android**
 
-[![Release](https://img.shields.io/github/v/release/papergray/MicUp?style=flat-square&color=blue)](https://github.com/papergray/MicUp/releases/latest)
-[![Android](https://img.shields.io/badge/Android-8.0%2B-green?style=flat-square&logo=android)](https://github.com/papergray/MicUp/releases/latest)
-[![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
-
-[Download APK](https://github.com/papergray/MicUp/releases/latest) · [Report Bug](https://github.com/papergray/MicUp/issues)
+[Все версии и APK](docs/releases/README.md) · [MicUp Lite](lite/README.md) · [Первоисточник: papergray/MicUp](https://github.com/papergray/MicUp) · [Авторство и MIT](THIRD_PARTY_NOTICES.md)
 
 </div>
 
@@ -43,7 +39,7 @@ No PC required. No monthly subscription.
 
 ## Download
 
-Grab the latest signed APK from the [Releases page](https://github.com/papergray/MicUp/releases/latest).
+Download the modified full or Lite APK from the [version catalog](docs/releases/README.md). The [original project](https://github.com/papergray/MicUp) is maintained separately.
 
 No Play Store. No sign-in. Just install and go.
 
@@ -129,3 +125,7 @@ MIT License — see [LICENSE](LICENSE)
 <div align="center">
 Made for Android · Built with Oboe, C++17, Jetpack Compose
 </div>
+
+## MicUp Lite
+
+A separate minimal app is available in [`lite/`](lite/README.md): VoIP playback, microphone/output gain, device selection, persistent settings, and ten level-only presets without tone-changing effects. It can be installed alongside the full version. Build with `./gradlew :lite:assembleRelease`.
