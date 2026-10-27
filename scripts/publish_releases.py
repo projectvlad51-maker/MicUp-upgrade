@@ -81,4 +81,9 @@ def main():
     print('GitHub release publication complete; repository visibility:',visibility)
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except Exception as error:
+        # No credentials are passed in arguments or included in this diagnostic.
+        Path('publication-error.txt').write_text(type(error).__name__+': '+str(error))
+        raise

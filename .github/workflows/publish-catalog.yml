@@ -35,6 +35,7 @@ jobs:
         run: |
           python3 - <<'PY'
           import datetime, json, os, subprocess
+          from pathlib import Path
           def git(*args, data=None):
               return subprocess.check_output(['git', *args], input=data).decode().strip()
           subprocess.run(['git','config','user.name','github-actions[bot]'],check=True)
@@ -42,7 +43,8 @@ jobs:
           visibility = subprocess.run(['gh','api','repos/'+os.environ['GITHUB_REPOSITORY'],'--jq','.visibility'],capture_output=True,text=True)
           report = {'source':git('rev-parse','HEAD'),'ref':os.environ['GITHUB_REF'],'result':os.environ['PUBLISH_RESULT'],
               'visibility': visibility.stdout.strip() if visibility.returncode == 0 else 'unknown',
-              'time_utc':datetime.datetime.now(datetime.timezone.utc).isoformat()}
+              'time_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),
+              'error':Path('publication-error.txt').read_text()[-4000:] if Path('publication-error.txt').exists() else None}
           probe = subprocess.run(['git','ls-remote','--exit-code','origin','refs/heads/publication-status'],capture_output=True,text=True)
           parent = []
           if probe.returncode == 0:
