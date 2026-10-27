@@ -8,6 +8,9 @@ import android.os.Build
 import android.os.Process
 import androidx.core.content.ContextCompat
 import com.micplugin.service.SpeakerBoostController
+import com.micplugin.service.EchoCancellation
+import com.micplugin.service.NoiseReduction
+import com.micplugin.service.MicrophoneSharingGuard
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlin.math.abs
@@ -22,9 +25,18 @@ class LiteEngine(private val context: Context, private val settings: LiteSetting
     private val _state = MutableStateFlow(LiteRunState())
     val state: StateFlow<LiteRunState> = _state
     val outputBoost = SpeakerBoostController()
+    val echo = EchoCancellation()
+    val noiseReduction = NoiseReduction()
     @Volatile private var running = false
     @Volatile private var recorder: AudioRecord? = null
     @Volatile private var thread: Thread? = null
+    private val sharing = MicrophoneSharingGuard(context, { recorder?.audioSessionId ?: -1 }) {
+        if (running) {
+            _state.value = _state.value.copy(error = "Android передал микрофон другому приложению. MicUp Lite остановлен для звонка.")
+            stop()
+            onFailure?.invoke()
+        }
+    }
     @Volatile var onFailure: (() -> Unit)? = null
 
     fun permissionDenied() { _state.value = _state.value.copy(error = "Разрешите доступ к микрофону") }
@@ -39,6 +51,10 @@ class LiteEngine(private val context: Context, private val settings: LiteSetting
         }
         val manager = devices.manager
         val previousMode = manager.mode
+        if (MicrophoneSharingGuard.communicationBusy(previousMode)) {
+            _state.value = LiteRunState(error = "Идёт звонок или связь другого приложения. Микрофон оставлен мессенджеру.")
+            return false
+        }
         var record: AudioRecord? = null
         var track: AudioTrack? = null
         try {
@@ -50,30 +66,38 @@ class LiteEngine(private val context: Context, private val settings: LiteSetting
             val inputMin = AudioRecord.getMinBufferSize(48000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_FLOAT)
             val outputMin = AudioTrack.getMinBufferSize(48000, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_FLOAT)
             require(inputMin > 0 && outputMin > 0) { "Формат аудио недоступен" }
-            // Recognition input avoids deliberately adding voice colouring / AGC effects.
-            record = AudioRecord.Builder().setAudioSource(MediaRecorder.AudioSource.VOICE_RECOGNITION)
-                .setAudioFormat(formatIn).setBufferSizeInBytes(maxOf(inputMin * 2, 8192)).build()
+            // Communication capture provides the system echo-reference path for speaker playback.
+            val recordBuilder = AudioRecord.Builder().setAudioSource(MediaRecorder.AudioSource.VOICE_COMMUNICATION)
+                .setAudioFormat(formatIn).setBufferSizeInBytes(maxOf(inputMin * 2, 8192))
+            if (Build.VERSION.SDK_INT >= 30) recordBuilder.setPrivacySensitive(false)
+            record = recordBuilder.build()
             track = AudioTrack.Builder().setAudioAttributes(AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
                 .setAudioFormat(formatOut).setBufferSizeInBytes(maxOf(outputMin * 2, 8192))
                 .setTransferMode(AudioTrack.MODE_STREAM).build()
             check(record.state == AudioRecord.STATE_INITIALIZED && track.state == AudioTrack.STATE_INITIALIZED)
             recorder = record
+            echo.attach(record.audioSessionId)
+            noiseReduction.attach(record.audioSessionId, settings.state.value.noiseReduction)
             applyRoute(record, track, settings.state.value, devices.state.value)
             outputBoost.setGain(settings.state.value.outputDb)
             outputBoost.attach(track.audioSessionId)
-            track.setVolume(settings.state.value.volume)
+            track.setVolume(if (settings.state.value.monitoring) settings.state.value.volume else 0f)
             record.startRecording()
             check(record.recordingState == AudioRecord.RECORDSTATE_RECORDING)
             track.play()
             running = true
             _state.value = _state.value.copy(running = true, error = null)
+            sharing.start()
             val input = record
             val output = track
             thread = Thread({ stream(input, output, previousMode) }, "MicUp-Lite-Audio").also { it.start() }
             return true
         } catch (e: RuntimeException) {
+            sharing.stop()
             outputBoost.detach()
+            echo.detach()
+            noiseReduction.detach()
             record?.release(); track?.release(); recorder = null
             restoreMode(previousMode)
             _state.value = LiteRunState(error = "Не удалось запустить звук: ${e.message ?: "ошибка устройства"}")
@@ -82,6 +106,7 @@ class LiteEngine(private val context: Context, private val settings: LiteSetting
     }
 
     fun stop() {
+        sharing.stop()
         running = false
         try { recorder?.stop() } catch (_: RuntimeException) {}
         thread?.interrupt()
@@ -104,8 +129,10 @@ class LiteEngine(private val context: Context, private val settings: LiteSetting
                     applyRoute(input, output, current, catalog)
                     routes = catalog
                 }
+                if (current.noiseReduction != last?.noiseReduction) noiseReduction.setEnabled(current.noiseReduction)
                 if (current.outputDb != last?.outputDb) outputBoost.setGain(current.outputDb)
-                if (current.volume != last?.volume) output.setVolume(current.volume)
+                if (current.volume != last?.volume || current.monitoring != last?.monitoring)
+                    output.setVolume(if (current.monitoring) current.volume else 0f)
                 last = current
                 val count = input.read(samples, 0, samples.size, AudioRecord.READ_BLOCKING)
                 if (!running) break
@@ -124,7 +151,10 @@ class LiteEngine(private val context: Context, private val settings: LiteSetting
             if (running) { failed = true; _state.value = _state.value.copy(error = "Звук остановлен: ${e.message}") }
         } finally {
             running = false
+            sharing.stop()
             outputBoost.detach()
+            echo.detach()
+            noiseReduction.detach()
             try { input.stop() } catch (_: RuntimeException) {}
             try { output.stop() } catch (_: RuntimeException) {}
             input.release(); output.release(); recorder = null

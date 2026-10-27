@@ -33,6 +33,7 @@ class OboeEngine @Inject constructor() {
     fun start(): Boolean = if (engineHandle != 0L) nativeStart(engineHandle) else false
     fun stop() { if (engineHandle != 0L) nativeStop(engineHandle) }
     fun isValid() = engineHandle != 0L
+    fun isRunning(): Boolean = engineHandle != 0L && nativeIsRunning(engineHandle)
 
     fun setParam(effectId: Int, paramId: Int, value: Float) {
         if (engineHandle != 0L) nativeSetParam(engineHandle, effectId, paramId, value)
@@ -59,6 +60,8 @@ class OboeEngine @Inject constructor() {
         if (engineHandle != 0L) nativeSetPluginParam(engineHandle, pluginHandle, paramId, value)
     }
 
+    fun getInputSessionId(): Int = if (engineHandle != 0L) nativeGetInputSessionId(engineHandle) else -1
+
     fun getSampleRate(): Int = if (engineHandle != 0L) nativeGetSampleRate(engineHandle) else 48000
     fun getFramesPerBurst(): Int = if (engineHandle != 0L) nativeGetFramesPerBurst(engineHandle) else 128
 
@@ -81,6 +84,8 @@ class OboeEngine @Inject constructor() {
     private external fun nativeSetPluginParam(handle: Long, pluginHandle: Long, paramId: Int, value: Float)
     private external fun nativeGetPluginParams(handle: Long, pluginHandle: Long): String
     private external fun nativeSetMonitorCallback(handle: Long, callback: Any?)
+    private external fun nativeIsRunning(handle: Long): Boolean
+    private external fun nativeGetInputSessionId(handle: Long): Int
     private external fun nativeGetSampleRate(handle: Long): Int
     private external fun nativeGetFramesPerBurst(handle: Long): Int
 }

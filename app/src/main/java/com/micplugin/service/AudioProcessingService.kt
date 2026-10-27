@@ -32,6 +32,7 @@ class AudioProcessingService : Service() {
 
     @Inject lateinit var audioEngine: AudioEngine
 
+    private var sharing: MicrophoneSharingGuard? = null
     private var wakeLock: PowerManager.WakeLock? = null
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     private var statusJob: Job? = null
@@ -44,6 +45,10 @@ class AudioProcessingService : Service() {
             while (isActive) {
                 try {
                     val status = audioEngine.status.value
+                    if (!status.isRunning) {
+                        android.os.Handler(android.os.Looper.getMainLooper()).post { stopSelf() }
+                        break
+                    }
                     val pluginCount = audioEngine.pluginChain.slots.value.size
                     updateNotification(
                         "Active · $pluginCount plugins",
@@ -105,20 +110,32 @@ class AudioProcessingService : Service() {
         }
         // Wire processed audio from C++ → SoftwareLoopback monitor
         audioEngine.setMonitorCallback { buf: FloatArray, size: Int -> SoftwareLoopback.writeProcessed(buf, size) }
+        if (!audioEngine.status.value.isRunning && MicrophoneSharingGuard.communicationBusy(
+                getSystemService(android.media.AudioManager::class.java).mode)) {
+            audioEngine.reportPause("Идёт звонок другого приложения. Микрофон оставлен мессенджеру.")
+            stopSelf()
+            return START_NOT_STICKY
+        }
         val started = audioEngine.status.value.isRunning || audioEngine.start()
         if (!started) {
             // Do not leave a fake active notification or spawn update loops after a failed start.
             stopSelf()
             return START_NOT_STICKY
         }
+        sharing?.stop()
+        sharing = MicrophoneSharingGuard(this, audioEngine::inputSessionId) {
+            audioEngine.reportPause("Android передал микрофон другому приложению. MicUp остановлен для звонка.")
+            stopSelf()
+        }.also { it.start() }
         startStatusUpdates()
         if (!SoftwareLoopback.isRunning) {
             SoftwareLoopback.start(this)
         }
-        return START_STICKY
+        return START_NOT_STICKY
     }
 
     override fun onDestroy() {
+        sharing?.stop()
         scope.cancel()
         audioEngine.stop()
         SoftwareLoopback.stop()

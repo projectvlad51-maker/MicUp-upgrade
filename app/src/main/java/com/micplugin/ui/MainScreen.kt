@@ -33,6 +33,7 @@ fun MainScreen(navController: NavController, vm: AudioViewModel = hiltViewModel(
     val context     = LocalContext.current
     val levels      by vm.levels.collectAsState()
     val status      by vm.engineStatus.collectAsState()
+    val engineNotice by vm.engineNotice.collectAsState()
     val gateState   by vm.gateState.collectAsState()
     val eqState     by vm.eqState.collectAsState()
     val compState   by vm.compState.collectAsState()
@@ -40,6 +41,9 @@ fun MainScreen(navController: NavController, vm: AudioViewModel = hiltViewModel(
     val pitchState  by vm.pitchState.collectAsState()
     val bypass      by vm.masterBypass.collectAsState()
     val monitoring  by vm.monitoringEnabled.collectAsState()
+    val echo by vm.echoState.collectAsState()
+    val noiseReduction by vm.noiseReductionState.collectAsState()
+    val noiseReductionEnabled by vm.noiseReductionEnabled.collectAsState()
     val microphoneGainDb by vm.microphoneGainDb.collectAsState()
     val presets     by vm.presets.collectAsState()
     val selectedPreset by vm.selectedPreset.collectAsState()
@@ -123,6 +127,7 @@ fun MainScreen(navController: NavController, vm: AudioViewModel = hiltViewModel(
 
         ShizukuConnectionRow(shizukuState, shizukuPermissionSettingsRequired) { vm.connectShizuku(context) }
         DashboardTabs(selectedTab) { selectedTab = it }
+        engineNotice?.let { Text(it, color = StudioColors.MeterAmber, fontSize = 12.sp) }
         Column(Modifier.weight(1f).verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(10.dp)) {
         // ── Preset chips ──────────────────────────────────────────────────────
@@ -177,8 +182,12 @@ fun MainScreen(navController: NavController, vm: AudioViewModel = hiltViewModel(
         if (selectedTab == 0) {
         AudioToggleRow("Обработка голоса", !bypass,
             if (bypass) "Эффекты выключены" else "Эффекты включены") { vm.setMasterBypass(!it) }
-        AudioToggleRow("Слышать звук MicUp", monitoring,
-            if (monitoring) "Воспроизведение включено" else "Воспроизведение выключено", vm::setMonitoring)
+        AudioToggleRow("Проверка микрофона", monitoring,
+            if (monitoring) "Слышать себя: включено" else "Слышать себя: выключено", vm::setMonitoring)
+        if (status.isRunning && monitoring) Text(
+            if (echo.active) "Системное эхоподавление включено"
+            else "Эхоподавление недоступно: используйте наушники или выключите проверку",
+            fontSize = 11.sp, color = StudioColors.TextMuted)
 
         Surface(
             modifier = Modifier.fillMaxWidth(),
@@ -232,6 +241,11 @@ fun MainScreen(navController: NavController, vm: AudioViewModel = hiltViewModel(
         }
 
         if (selectedTab == 1) {
+        AudioToggleRow("Шумоподавление", noiseReductionEnabled,
+            "Системное подавление фонового шума", vm::setNoiseReduction)
+        if (status.isRunning && noiseReductionEnabled) Text(
+            if (bypass) "Обработка выключена" else if (noiseReduction.active) "Шумоподавление включено"
+            else "Шумоподавление не предоставлено устройством", fontSize = 11.sp, color = StudioColors.TextMuted)
         EffectCard("Убрать гул и низкие частоты", filters.highPassEnabled,
             { vm.setVoiceFilters(filters.copy(highPassEnabled = it)) }) {
             ParamSlider("Срез низких частот", filters.highPassHz,

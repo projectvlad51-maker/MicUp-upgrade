@@ -76,9 +76,35 @@ class SpeakerBoostControllerTest {
                 override fun release() { released = true }
             }
         }
+        control.setGain(6f)
         control.attach(10)
         assertTrue(released)
         assertEquals(false, control.state.value.available)
         assertFalse(control.state.value.active)
     }
+    @Test fun zeroGainCreatesNoEffectAndDisablingReleasesOwnSession() {
+        var creations = 0
+        val effects = mutableListOf<Effect>()
+        val control = SpeakerBoostController { creations++; Effect().also { effects.add(it) } }
+        control.attach(23)
+        assertEquals(0, creations)
+        control.setGain(6f)
+        assertEquals(1, creations)
+        control.setGain(0f)
+        assertTrue(effects.first().released)
+        assertFalse(control.state.value.active)
+        control.setGain(9f)
+        assertEquals(2, creations)
+    }
+    @Test fun globalOrInvalidSessionIsNeverModified() {
+        var creations = 0
+        val control = SpeakerBoostController { creations++; Effect() }
+        control.setGain(12f)
+        control.attach(0)
+        assertEquals(0, creations)
+        assertFalse(control.state.value.active)
+        control.attach(-1)
+        assertEquals(0, creations)
+    }
+
 }

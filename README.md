@@ -27,7 +27,9 @@ No PC required. No monthly subscription.
 -  **Built-in DSP chain** — Noise Gate, 10-band EQ, Compressor, Reverb, Pitch Shifter
 -  **Plugin support** — Load LV2, CLAP, and VST3 native plugins (`.so`, `.clap`, `.lv2`)
 -  **Open plugin files** — Tap a plugin file in your file manager to import it directly
--  **Monitor toggle** — Hear your processed audio through headphones, or silence local playback
+-  **Noise suppression and echo cancellation** — system effects on the capture session when supported, with a saved noise-suppression switch
+-  **Microphone check** — local monitoring defaults to off; the switch is saved independently of presets
+-  **Call priority** — decline capture during an existing call and release it on a detected recording conflict
 -  **Shizuku connection** — a pinned row on every dashboard tab, direct manager launch, permission request, denied-permission settings action, and live reconnect status
 -  **Selectable playback modes** — Local Monitor or VoIP Playback, with Shizuku access managed separately
 -  **Live VU meters** — Input, output, and gain reduction metering
@@ -78,12 +80,12 @@ Shizuku and root access alone do not install a virtual microphone. The previous 
 **Requirements:** Android Studio, NDK 26, CMake 3.22, JDK 17
 
 ```bash
-git clone https://github.com/papergray/MicUp.git
-cd MicUp
-./gradlew assembleDebug
+git clone https://github.com/projectvlad51-maker/MicUp-upgrade.git
+cd MicUp-upgrade
+RELEASE_TAG=v1.0.13 ./gradlew :app:assembleRelease :lite:assembleRelease
 ```
 
-APK will be at `app/build/outputs/apk/debug/app-debug.apk`.
+APKs are at `app/build/outputs/apk/release/app-release.apk` and `lite/build/outputs/apk/release/lite-release.apk`. Distributed APKs retain the development signing certificate for updates and have debugging disabled. [Installation and Play Protect](docs/INSTALLATION.md).
 
 Run the Android regression tests with `./gradlew testDebugUnitTest`. The native microphone boost tests can also run on a development machine without an Android device:
 

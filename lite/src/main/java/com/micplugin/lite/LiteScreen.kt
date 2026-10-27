@@ -1,6 +1,8 @@
 package com.micplugin.lite
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -24,6 +26,10 @@ fun LiteScreen(
     onToggle: () -> Unit, onMicrophone: (Float) -> Unit, onOutput: (Float) -> Unit,
     onVolume: (Float) -> Unit, onInputDevice: (String) -> Unit, onOutputDevice: (String) -> Unit,
     onPreset: (String) -> Unit,
+    onMonitoring: (Boolean) -> Unit = {},
+    echo: com.micplugin.service.EchoCancellationState = com.micplugin.service.EchoCancellationState(),
+    onNoiseReduction: (Boolean) -> Unit = {},
+    noiseReduction: com.micplugin.service.NoiseReductionState = com.micplugin.service.NoiseReductionState(),
 ) {
     MaterialTheme(colorScheme = LiteColors) {
         Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
@@ -38,6 +44,18 @@ fun LiteScreen(
             Button(onClick = onToggle, modifier = Modifier.fillMaxWidth().height(52.dp)) {
                 Text(if (audio.running) "Выключить звук" else "Включить звук")
             }
+            Row(Modifier.fillMaxWidth().toggleable(settings.monitoring, role = Role.Switch, onValueChange = onMonitoring)
+                .padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Проверка микрофона", color = MaterialTheme.colorScheme.onSurface)
+                    Text(if (settings.monitoring) "Слышать себя: включено" else "Слышать себя: выключено",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                }
+                Switch(checked = settings.monitoring, onCheckedChange = null)
+            }
+            if (audio.running && settings.monitoring) Text(
+                if (echo.active) "Системное эхоподавление включено" else "Эхоподавление недоступно: используйте наушники или выключите проверку",
+                color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
             audio.error?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 12.sp) }
             if (audio.running) {
                 LinearProgressIndicator(progress = ((audio.inputDb + 60f) / 60f).coerceIn(0f, 1f), modifier = Modifier.fillMaxWidth())
@@ -62,6 +80,14 @@ fun LiteScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
                 }
                 LitePanel("Микрофон") {
+                    Row(Modifier.fillMaxWidth().toggleable(settings.noiseReduction, role = Role.Switch, onValueChange = onNoiseReduction),
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Text("Шумоподавление", modifier = Modifier.weight(1f))
+                        Switch(checked = settings.noiseReduction, onCheckedChange = null)
+                    }
+                    if (audio.running && settings.noiseReduction) Text(
+                        if (noiseReduction.active) "Системное шумоподавление включено" else "Шумоподавление не предоставлено устройством",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
                     LiteSlider("Усиление микрофона", settings.microphoneDb, 0f..36f, "дБ", "mic_gain", onMicrophone)
                     Text("Без эквалайзера, реверберации и изменения высоты голоса. Пики ограничиваются автоматически.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)

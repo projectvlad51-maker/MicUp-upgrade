@@ -74,5 +74,25 @@
     "artifact_name": "MicUp-Lite-1.0.0.apk",
     "sha256": "a5cc812f244532591fe5b79eefd32eb982b01e7765190802e0c1c0f58664847f",
     "size": 1139721
+  },
+  {
+    "tag": "micup-v1.0.13",
+    "title": "MicUp 1.0.13",
+    "source_ref": "micup-v1.0.13",
+    "notes": "docs/releases/micup-v1.0.13.md",
+    "artifact_ref": "436ad43782c9f3cd9d35bd17f1584e2de9bbae05",
+    "artifact_name": "MicUp-1.0.13-release.apk",
+    "sha256": "e49fe93e7d9bc5dba9dc27528f877e90c8b58d366bd91e45cd7574512459ac3f",
+    "size": 15696403
+  },
+  {
+    "tag": "lite-v1.0.1",
+    "title": "MicUp Lite 1.0.1",
+    "source_ref": "lite-v1.0.1",
+    "notes": "docs/releases/lite-v1.0.1.md",
+    "artifact_ref": "5e702f7e2b677dea61e10d341ec1b7aee3ad2f4f",
+    "artifact_name": "MicUp-Lite-1.0.1.apk",
+    "sha256": "5f4713279373e8653239e5ae4db559d8cf2b892df3e53232b3a3f5a3493aadae",
+    "size": 1152173
   }
 ]

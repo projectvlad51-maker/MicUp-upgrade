@@ -9,12 +9,13 @@ android {
         applicationId = "com.micplugin.lite"
         minSdk = 26
         targetSdk = 34
-        versionCode = 10000
-        versionName = "1.0.0"
+        versionCode = 10001
+        versionName = "1.0.1"
     }
     sourceSets.getByName("main").java.srcDir(rootProject.file("shared/audio"))
     buildTypes {
         release {
+            isDebuggable = false
             isMinifyEnabled = true
             isShrinkResources = true
             signingConfig = signingConfigs.getByName("debug")

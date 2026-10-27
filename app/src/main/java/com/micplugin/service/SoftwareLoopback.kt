@@ -19,7 +19,7 @@ object SoftwareLoopback {
     private var workerThread:  Thread?       = null
     private var audioManager:  AudioManager? = null
     private var selectedDeviceId: Int        = -1
-    @Volatile private var monitorEnabled:   Boolean    = true
+    @Volatile private var monitorEnabled:   Boolean    = false
     @Volatile private var running = false
     private var focusRequest: AudioFocusRequest? = null
     private var voipMode = false
@@ -72,6 +72,8 @@ object SoftwareLoopback {
 
     fun start(context: Context) {
         if (running) return
+        monitorEnabled = context.getSharedPreferences("micup_prefs", Context.MODE_PRIVATE)
+            .getBoolean("monitoring_enabled", false)
         audioManager = context.getSystemService(AudioManager::class.java)
 
         val minBuf = AudioTrack.getMinBufferSize(SAMPLE_RATE,
@@ -221,6 +223,8 @@ object SoftwareLoopback {
     }
 
     private fun requestAudioFocus() {
+        // A diagnostic VoIP monitor must not take communication focus away from a call app.
+        if (voipMode) return
         val am = audioManager ?: return
         val listener = AudioManager.OnAudioFocusChangeListener { change ->
             when (change) {
@@ -249,6 +253,7 @@ object SoftwareLoopback {
                 focusRequest?.let { audioManager?.abandonAudioFocusRequest(it) }
             else @Suppress("DEPRECATION") audioManager?.abandonAudioFocus(null)
         } catch (_: Exception) {}
+        focusRequest = null
     }
 
     private fun buildMonitorTrack(bufSize: Int): AudioTrack? = try {

@@ -49,6 +49,8 @@ android {
             isDebuggable = true
         }
         release {
+            isDebuggable = false
+            signingConfig = signingConfigs.getByName("debug") // preserve the existing update certificate
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

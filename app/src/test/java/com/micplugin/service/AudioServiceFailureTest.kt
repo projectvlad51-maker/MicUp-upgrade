@@ -24,4 +24,18 @@ class AudioServiceFailureTest {
         } finally { controller.destroy() }
         assertTrue(shadowOf(service).isForegroundStopped)
     }
+    @Test fun existingDiscordStyleCommunicationModeIsNotTakenOver() {
+        val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+        val manager = context.getSystemService(android.media.AudioManager::class.java)
+        manager.mode = android.media.AudioManager.MODE_IN_COMMUNICATION
+        val controller = Robolectric.buildService(AudioProcessingService::class.java).create()
+        val service = controller.get()
+        try {
+            assertEquals(Service.START_NOT_STICKY, service.onStartCommand(null, 0, 1))
+            assertTrue(service.audioEngine.notice.value.orEmpty().contains("звонок"))
+            assertEquals(android.media.AudioManager.MODE_IN_COMMUNICATION, manager.mode)
+            assertFalse(SoftwareLoopback.isRunning)
+        } finally { controller.destroy() }
+    }
+
 }

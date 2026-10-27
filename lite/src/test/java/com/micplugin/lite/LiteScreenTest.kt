@@ -27,7 +27,8 @@ class LiteScreenTest {
         compose.setContent {
             val settings by store.state.collectAsState()
             LiteScreen(settings, LiteRunState(), devices.value, SpeakerBoostState(), onToggle,
-                store::microphone, store::output, store::volume, store::input, store::outputDevice, store::preset)
+                store::microphone, store::output, store::volume, store::input, store::outputDevice, store::preset,
+                onMonitoring = store::monitoring, onNoiseReduction = store::noiseReduction)
         }
     }
     private fun store() = LiteSettingsStore(ApplicationProvider.getApplicationContext<Context>())
@@ -63,4 +64,27 @@ class LiteScreenTest {
         compose.onNodeWithTag("device_Выход звука").assertTextContains("USB-наушники")
         compose.runOnIdle { assertEquals(store.state.value, store().state.value) }
     }
+    @Test fun microphoneCheckCanBeMutedAndStaysMutedAfterChangingPreset() {
+        val store = store()
+        render(store)
+        compose.onNodeWithText("Проверка микрофона").assertIsOff().performClick().assertIsOn()
+        compose.runOnIdle { assertTrue(store.state.value.monitoring) }
+        compose.onNodeWithText("Проверка микрофона").performClick().assertIsOff()
+        compose.runOnIdle { store.preset("speaker_loud") }
+        compose.onNodeWithText("Проверка микрофона").assertIsOff()
+        compose.runOnIdle { assertFalse(store().state.value.monitoring) }
+    }
+
+    @Test fun noiseSuppressionSwitchIsIndependentFromMonitorAndGains() {
+        val store = store()
+        render(store)
+        compose.onNodeWithText("Шумоподавление").performScrollTo().assertIsOn().performClick().assertIsOff()
+        compose.onNodeWithText("Проверка микрофона").assertIsOff()
+        compose.runOnIdle {
+            assertFalse(store.state.value.noiseReduction)
+            assertFalse(store.state.value.monitoring)
+            assertEquals(0f, store.state.value.microphoneDb)
+        }
+    }
+
 }

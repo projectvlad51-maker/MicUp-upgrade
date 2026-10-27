@@ -37,4 +37,16 @@ class LiteServiceTest {
         } finally { controller.destroy() }
         assertTrue(shadowOf(service).isForegroundStopped)
     }
+    @Test fun captureCannotStartOverAnExistingCall() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        shadowOf(context as Application).grantPermissions(Manifest.permission.RECORD_AUDIO)
+        val manager = context.getSystemService(android.media.AudioManager::class.java)
+        manager.mode = android.media.AudioManager.MODE_IN_COMMUNICATION
+        val app = context as LiteApplication
+        assertFalse(app.engine.start())
+        assertFalse(app.engine.state.value.running)
+        assertTrue(app.engine.state.value.error.orEmpty().contains("звонок"))
+        assertEquals(android.media.AudioManager.MODE_IN_COMMUNICATION, manager.mode)
+    }
+
 }

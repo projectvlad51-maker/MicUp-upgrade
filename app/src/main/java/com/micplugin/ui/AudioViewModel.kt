@@ -75,6 +75,7 @@ class AudioViewModel @Inject constructor(
 
     val levels:      StateFlow<AudioLevels>    = audioEngine.levels
     val engineStatus = audioEngine.status
+    val engineNotice = audioEngine.notice
     val pluginSlots: StateFlow<List<PluginSlot>> = audioEngine.pluginChain.slots
     val discovered:  StateFlow<List<PluginDescriptor>> = pluginManager.discovered
     val presets:     StateFlow<List<Preset>>   = presetManager.presets
@@ -87,6 +88,19 @@ class AudioViewModel @Inject constructor(
     fun refreshDeviceVolumes() = deviceVolumeController.refresh()
     fun setDeviceMediaVolume(value: Int) = deviceVolumeController.setMedia(value)
     fun setDeviceCallVolume(value: Int) = deviceVolumeController.setCall(value)
+
+    private val _monitoringEnabled = MutableStateFlow(false)
+    val monitoringEnabled: kotlinx.coroutines.flow.StateFlow<Boolean> = _monitoringEnabled
+    val echoState = audioEngine.echo.state
+    val noiseReductionState = audioEngine.noiseReduction.state
+    private val _noiseReductionEnabled = MutableStateFlow(true)
+    val noiseReductionEnabled: StateFlow<Boolean> = _noiseReductionEnabled
+    fun setNoiseReduction(enabled: Boolean) {
+        _noiseReductionEnabled.value = enabled
+        audioEngine.setNoiseReduction(enabled)
+        context.getSharedPreferences("micup_prefs", Context.MODE_PRIVATE).edit()
+            .putBoolean("noise_reduction_enabled", enabled).apply()
+    }
 
     val speakerBoostState = SoftwareLoopback.speakerBoostState
     fun setSpeakerBoost(db: Float) {
@@ -150,6 +164,8 @@ class AudioViewModel @Inject constructor(
     init {
         val prefs = context.getSharedPreferences("micup_prefs", Context.MODE_PRIVATE)
         setMonitorVolume(prefs.getFloat("monitor_volume", 1f))
+        setMonitoring(prefs.getBoolean("monitoring_enabled", false))
+        setNoiseReduction(prefs.getBoolean("noise_reduction_enabled", true))
         setSpeakerBoost(prefs.getFloat("speaker_boost_db", 0f))
         setVoiceFilters(VoiceFilterState(prefs.getBoolean("high_pass_enabled", false),
             prefs.getFloat("high_pass_hz", 80f), prefs.getBoolean("low_pass_enabled", false),
@@ -410,11 +426,11 @@ class AudioViewModel @Inject constructor(
         pluginPathPrefs.allPaths(context, format)
 
 
-    private val _monitoringEnabled = MutableStateFlow(true)
-    val monitoringEnabled: kotlinx.coroutines.flow.StateFlow<Boolean> = _monitoringEnabled
 
     fun setMonitoring(enabled: Boolean) {
         _monitoringEnabled.value = enabled
+        context.getSharedPreferences("micup_prefs", Context.MODE_PRIVATE).edit()
+            .putBoolean("monitoring_enabled", enabled).apply()
         audioEngine.setMonitoring(enabled)
         SoftwareLoopback.setMonitorEnabled(enabled)
     }

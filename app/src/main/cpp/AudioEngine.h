@@ -167,6 +167,7 @@ public:
 
     int32_t sampleRate()    const { return sampleRate_; }
     int32_t framesPerBurst() const { return framesPerBurst_; }
+    int32_t inputSessionId() const { return inputSessionId_.load(std::memory_order_relaxed); }
 
     // oboe callbacks
     oboe::DataCallbackResult onAudioReady(
@@ -195,6 +196,7 @@ private:
     // Streams
     std::shared_ptr<oboe::AudioStream> inputStream_, outputStream_;
     std::atomic<bool> running_{false};
+    std::atomic<int32_t> inputSessionId_{-1};
 
     int32_t sampleRate_    = 48000;
     int32_t framesPerBurst_ = 128;

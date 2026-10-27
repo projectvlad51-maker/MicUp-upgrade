@@ -6,6 +6,8 @@
 
 | Версия | Описание | APK |
 |---|---|---|
+| MicUp Lite 1.0.1 | [Изменения](lite-v1.0.1.md) | [Скачать](https://github.com/projectvlad51-maker/MicUp-upgrade/releases/download/lite-v1.0.1/MicUp-Lite-1.0.1.apk) |
+| MicUp 1.0.13 | [Изменения](micup-v1.0.13.md) | [Скачать](https://github.com/projectvlad51-maker/MicUp-upgrade/releases/download/micup-v1.0.13/MicUp-1.0.13-release.apk) |
 | MicUp Lite 1.0.0 | [Изменения](lite-v1.0.0.md) | [Скачать](https://github.com/projectvlad51-maker/MicUp-upgrade/raw/f9351cfd681a6c85b1dbbe9690876cf916ab5c90/MicUp-Lite-1.0.0.apk) |
 | MicUp 1.0.12 | [Изменения](micup-v1.0.12.md) | [Скачать](https://github.com/projectvlad51-maker/MicUp-upgrade/raw/bb2a86f2da634e56bd69437d031b3777599b18a5/MicUp-1.0.12-volume-controls-debug.apk) |
 | MicUp 1.0.11 | [Изменения](micup-v1.0.11.md) | [Скачать](https://github.com/projectvlad51-maker/MicUp-upgrade/raw/47a20e74ef67f43bc12ea4abfdffc51fe6abb1e6/MicUp-1.0.11-shizuku-debug.apk) |
@@ -15,9 +17,11 @@
 | MicUp 1.0.7 | [Изменения](micup-v1.0.7.md) | [Скачать](https://github.com/projectvlad51-maker/MicUp-upgrade/raw/8e825f57964da41ec52da7115126711b0fbfef8e/MicUp-1.0.7-compressor-fix-debug.apk) |
 | MicUp 1.0.6 — исходный архив | [Изменения](upstream-archive-v1.0.6.md) | Исходники, без APK |
 
-Полные версии 1.0.7–1.0.12 устанавливаются друг поверх друга. Lite — отдельное приложение и может стоять рядом с полной версией. Все APK подписаны ключом разработческой сборки; SHA-256 указан в описании каждой версии.
+Полные версии 1.0.7–1.0.13 устанавливаются друг поверх друга. Lite — отдельное приложение и может стоять рядом с полной версией. Все APK подписаны ключом разработческой сборки; SHA-256 указан в описании каждой версии.
 
 Сохранение настроек в Lite рассчитано на закрытие/открытие приложения и перезапуск телефона; очистка данных приложения или удаление приложения стирает настройки средствами Android.
+
+[Установка, Play Защита и ограничения звонков](../INSTALLATION.md).
 
 ## Публикация GitHub Releases
 

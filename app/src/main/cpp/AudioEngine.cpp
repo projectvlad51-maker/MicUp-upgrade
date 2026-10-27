@@ -133,8 +133,10 @@ bool AudioEngine::openStreams() {
     auto result = builder
         .setDirection(oboe::Direction::Input)
         ->setInputPreset(oboe::InputPreset::VoiceCommunication)
+        ->setPrivacySensitiveMode(oboe::PrivacySensitiveMode::Disabled)
+        ->setSessionId(oboe::SessionId::Allocate)
         ->setPerformanceMode(oboe::PerformanceMode::LowLatency)
-        ->setSharingMode(oboe::SharingMode::Exclusive)
+        ->setSharingMode(oboe::SharingMode::Shared)
         ->setFormat(oboe::AudioFormat::Float)
         ->setChannelCount(1)
         ->setSampleRate(48000)
@@ -145,6 +147,7 @@ bool AudioEngine::openStreams() {
         return false;
     }
 
+    inputSessionId_.store(static_cast<int32_t>(inputStream_->getSessionId()), std::memory_order_relaxed);
     sampleRate_    = inputStream_->getSampleRate();
     framesPerBurst_ = inputStream_->getFramesPerBurst();
     LOGI("Input stream opened: %dHz, %d frames/burst", sampleRate_, framesPerBurst_);
@@ -152,7 +155,7 @@ bool AudioEngine::openStreams() {
     // ─ Output stream (playback → VOICE_COMMUNICATION) ────────────────────────
     builder.setDirection(oboe::Direction::Output)
            ->setPerformanceMode(oboe::PerformanceMode::LowLatency)
-           ->setSharingMode(oboe::SharingMode::Exclusive)
+           ->setSharingMode(oboe::SharingMode::Shared)
            ->setFormat(oboe::AudioFormat::Float)
            ->setChannelCount(1)
            ->setSampleRate(sampleRate_)
@@ -182,6 +185,7 @@ bool AudioEngine::openStreams() {
 }
 
 void AudioEngine::closeStreams() {
+    inputSessionId_.store(-1, std::memory_order_relaxed);
     if (outputStream_) { outputStream_->requestStop(); outputStream_->close(); outputStream_.reset(); }
     if (inputStream_)  { inputStream_->requestStop();  inputStream_->close();  inputStream_.reset();  }
 }
@@ -258,11 +262,9 @@ oboe::DataCallbackResult AudioEngine::onAudioReady(
 }
 
 void AudioEngine::onErrorAfterClose(oboe::AudioStream* stream, oboe::Result error) {
-    LOGE("Audio stream error: %s — restarting", oboe::convertToText(error));
-    if (running_.load()) {
-        closeStreams();
-        openStreams();
-    }
+    LOGE("Audio stream error: %s — releasing capture", oboe::convertToText(error));
+    running_.store(false, std::memory_order_release);
+    closeStreams();
 }
 
 void AudioEngine::measureLevel(const float* buf, int32_t frames, std::atomic<float>& out) {
@@ -544,6 +546,16 @@ JNIEXPORT void JNICALL
 Java_com_micplugin_audio_OboeEngine_nativeSetPluginParam(
     JNIEnv*, jobject, jlong handle, jlong pluginHandle, jint paramId, jfloat value) {
     if (gPluginHost) gPluginHost->setPluginParam(pluginHandle, paramId, value);
+}
+
+JNIEXPORT jboolean JNICALL
+Java_com_micplugin_audio_OboeEngine_nativeIsRunning(JNIEnv*, jobject, jlong handle) {
+    return reinterpret_cast<AudioEngine*>(handle)->isRunning() ? JNI_TRUE : JNI_FALSE;
+}
+
+JNIEXPORT jint JNICALL
+Java_com_micplugin_audio_OboeEngine_nativeGetInputSessionId(JNIEnv*, jobject, jlong handle) {
+    return reinterpret_cast<AudioEngine*>(handle)->inputSessionId();
 }
 
 JNIEXPORT jint JNICALL

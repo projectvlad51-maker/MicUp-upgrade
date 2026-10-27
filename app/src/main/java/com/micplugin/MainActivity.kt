@@ -145,15 +145,6 @@ class MainActivity : ComponentActivity() {
 
     private fun startAudioService() {
         AudioProcessingService.start(this)
-        requestBatteryOptimizationExemption()
     }
 
-    private fun requestBatteryOptimizationExemption() {
-        if (Build.VERSION.SDK_INT >= 23) {
-            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                data = Uri.parse("package:$packageName")
-            }
-            try { startActivity(intent) } catch (_: Exception) {}
-        }
-    }
 }

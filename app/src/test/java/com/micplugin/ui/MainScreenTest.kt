@@ -113,12 +113,13 @@ class MainScreenTest {
         lateinit var vm: AudioViewModel
         compose.runOnIdle { vm = createViewModel(context, ShizukuManager()) }
         compose.setContent { MicPluginTheme { MainScreen(rememberNavController(), vm) } }
+        compose.runOnIdle { vm.setMonitoring(false) }
         compose.onNodeWithText("Обработка голоса").performScrollTo().assertIsOn().performClick().assertIsOff()
-        compose.runOnIdle { assertEquals(true, vm.masterBypass.value); assertEquals(true, vm.monitoringEnabled.value) }
-        compose.onNodeWithText("Слышать звук MicUp").performScrollTo().performClick().assertIsOff()
-        compose.runOnIdle { assertEquals(false, vm.monitoringEnabled.value); assertEquals(true, vm.masterBypass.value) }
+        compose.runOnIdle { assertEquals(true, vm.masterBypass.value); assertEquals(false, vm.monitoringEnabled.value) }
+        compose.onNodeWithText("Проверка микрофона").performScrollTo().performClick().assertIsOn()
+        compose.runOnIdle { assertEquals(true, vm.monitoringEnabled.value); assertEquals(true, vm.masterBypass.value) }
         compose.onNodeWithText("Обработка голоса").performScrollTo().performClick().assertIsOn()
-        compose.runOnIdle { assertEquals(false, vm.masterBypass.value); assertEquals(false, vm.monitoringEnabled.value) }
+        compose.runOnIdle { assertEquals(false, vm.masterBypass.value); assertEquals(true, vm.monitoringEnabled.value) }
     }
 
     @Test fun mediaAndVoipButtonsChooseMatchingPlaybackRoute() {
@@ -163,6 +164,30 @@ class MainScreenTest {
             val intent = app.nextStartedActivity
             assertEquals(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, intent.action)
             assertEquals("package:" + context.packageName, intent.data.toString())
+        }
+    }
+
+    @Test fun monitoringChoicePersistsAndPresetsCannotEnableIt() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        compose.runOnIdle {
+            val first = createViewModel(context, ShizukuManager())
+            first.setMonitoring(true)
+            assertEquals(true, createViewModel(context, ShizukuManager()).monitoringEnabled.value)
+            first.setMonitoring(false)
+            first.applyPreset(PresetManager.BUILT_IN.first())
+            assertEquals(false, first.monitoringEnabled.value)
+            assertEquals(false, createViewModel(context, ShizukuManager()).monitoringEnabled.value)
+        }
+    }
+
+    @Test fun noiseSuppressionSettingIsSavedIndependentlyOfPresetAndMonitoring() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        compose.runOnIdle {
+            val vm = createViewModel(context, ShizukuManager())
+            vm.setNoiseReduction(false)
+            vm.applyPreset(PresetManager.BUILT_IN.first())
+            assertEquals(false, vm.noiseReductionEnabled.value)
+            assertEquals(false, createViewModel(context, ShizukuManager()).noiseReductionEnabled.value)
         }
     }
 

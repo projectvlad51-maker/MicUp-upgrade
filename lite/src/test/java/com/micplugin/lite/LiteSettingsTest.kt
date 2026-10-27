@@ -60,4 +60,23 @@ class LiteSettingsTest {
         assertEquals(1f, store.state.value.volume)
         assertEquals(store.state.value, LiteSettingsStore(context).state.value)
     }
+    @Test fun monitoringIsOffByDefaultAndPresetsNeverOverrideSavedChoice() {
+        val store = LiteSettingsStore(context)
+        assertFalse(store.state.value.monitoring)
+        store.monitoring(true)
+        LitePresets.all.forEach { store.preset(it.id); assertTrue(store.state.value.monitoring) }
+        assertTrue(LiteSettingsStore(context).state.value.monitoring)
+        store.monitoring(false)
+        LitePresets.all.forEach { store.preset(it.id); assertFalse(store.state.value.monitoring) }
+        assertFalse(LiteSettingsStore(context).state.value.monitoring)
+    }
+
+    @Test fun noiseSuppressionChoicePersistsAndPresetsLeaveItAlone() {
+        val store = LiteSettingsStore(context)
+        assertTrue(store.state.value.noiseReduction)
+        store.noiseReduction(false)
+        LitePresets.all.forEach { store.preset(it.id); assertFalse(store.state.value.noiseReduction) }
+        assertFalse(LiteSettingsStore(context).state.value.noiseReduction)
+    }
+
 }
