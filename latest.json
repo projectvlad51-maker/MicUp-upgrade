@@ -1,9 +1,9 @@
 {
-  "source": "96696d1ab5e2b18ac96fdfdc2fdbcd33a5c5c702",
-  "ref": "refs/heads/main",
+  "source": "7bf98e1bab31519b9fb7452d316c695b77f074a4",
+  "ref": "refs/tags/lite-v1.0.1",
   "result": "success",
   "visibility": "public",
-  "time_utc": "2026-10-27T05:19:14.945375+00:00",
+  "time_utc": "2026-10-27T05:56:00.641120+00:00",
   "error": null,
   "visibility_error": null,
   "confirmed_releases": [
@@ -34,6 +34,13 @@
       ]
     },
     {
+      "tag": "micup-v1.0.13",
+      "draft": false,
+      "assets": [
+        "MicUp-1.0.13-release.apk"
+      ]
+    },
+    {
       "tag": "micup-v1.0.12",
       "draft": false,
       "assets": [
@@ -52,6 +59,13 @@
       "draft": false,
       "assets": [
         "MicUp-1.0.10-audio-controls-debug.apk"
+      ]
+    },
+    {
+      "tag": "lite-v1.0.1",
+      "draft": false,
+      "assets": [
+        "MicUp-Lite-1.0.1.apk"
       ]
     },
     {
