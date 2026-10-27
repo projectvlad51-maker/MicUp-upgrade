@@ -24,6 +24,7 @@ No PC required. No monthly subscription.
 
 ## Features
 
+-  **Mic Boost** — independent 0 to +36 dB boost, smooth level changes, reset button, and preset support
 -  **Built-in DSP chain** — Noise Gate, 10-band EQ, Compressor, Reverb, Pitch Shifter
 -  **Plugin support** — Load LV2, CLAP, and VST3 native plugins (`.so`, `.clap`, `.lv2`)
 -  **Open plugin files** — Tap a plugin file in your file manager to import it directly
@@ -81,6 +82,13 @@ cd MicUp
 ```
 
 APK will be at `app/build/outputs/apk/debug/app-debug.apk`.
+
+Run the Android regression tests with `./gradlew testDebugUnitTest`. The native microphone boost tests can also run on a development machine without an Android device:
+
+```bash
+g++ -std=c++17 -O3 -ffast-math -Iapp/src/main/cpp app/src/test/cpp/MicrophoneGainTest.cpp -o /tmp/micup-gain-test
+/tmp/micup-gain-test
+```
 
 ---
 

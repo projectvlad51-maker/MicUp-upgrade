@@ -61,6 +61,8 @@ class AudioEngine @Inject constructor(
         _levels.value = AudioLevels()
     }
 
+    fun setMicrophoneGain(db: Float) = oboe.setParam(5, 0, db)
+
     fun setMonitorCallback(cb: ((FloatArray, Int) -> Unit)?) {
         oboe.setMonitorCallback(cb)
     }

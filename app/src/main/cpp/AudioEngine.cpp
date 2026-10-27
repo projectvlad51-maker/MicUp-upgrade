@@ -235,6 +235,11 @@ oboe::DataCallbackResult AudioEngine::onAudioReady(
         pluginHost_->process(out, numFrames, sampleRate_);
     }
 
+    microphoneGain_.process(out, numFrames,
+        params_.masterBypass.load(std::memory_order_relaxed) ? 0.0f :
+            params_.microphoneGainDb.load(std::memory_order_relaxed),
+        static_cast<float>(sampleRate_));
+
     // Measure output level
     measureLevel(out, numFrames, params_.outputLevelDb);
 
@@ -483,6 +488,10 @@ Java_com_micplugin_audio_OboeEngine_nativeSetParam(
         case 4: // Pitch
             if (paramId==0) p.pitchSemitones.store(value, std::memory_order_relaxed);
             else if (paramId==1) p.pitchEnabled.store(value > 0.5f, std::memory_order_relaxed);
+            break;
+        case 5: // Microphone boost
+            if (paramId == 0) p.microphoneGainDb.store(
+                std::clamp(value, 0.0f, micplugin::MicrophoneGain::kMaxBoostDb), std::memory_order_relaxed);
             break;
         case 99: // Master bypass
             p.masterBypass.store(value > 0.5f, std::memory_order_relaxed);

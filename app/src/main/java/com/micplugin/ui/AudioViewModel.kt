@@ -1,5 +1,7 @@
 package com.micplugin.ui
 
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.micplugin.audio.AudioEngine
@@ -55,6 +57,7 @@ data class PitchState(
 
 @HiltViewModel
 class AudioViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val audioEngine: AudioEngine,
     private val pluginManager: PluginManager,
     private val presetManager: PresetManager,
@@ -70,6 +73,17 @@ class AudioViewModel @Inject constructor(
     val presets:     StateFlow<List<Preset>>   = presetManager.presets
     val virtualMicTier: StateFlow<VirtualMicTier> = virtualMicService.activeTier
     val shizukuState: StateFlow<ShizukuState> = shizukuManager.state
+
+    private val _microphoneGainDb = MutableStateFlow(0f)
+    val microphoneGainDb: StateFlow<Float> = _microphoneGainDb
+
+    fun setMicrophoneGain(db: Float) {
+        val boost = if (db.isFinite()) db.coerceIn(0f, 36f) else 0f
+        _microphoneGainDb.value = boost
+        audioEngine.setMicrophoneGain(boost)
+        context.getSharedPreferences("micup_prefs", Context.MODE_PRIVATE).edit()
+            .putFloat("microphone_gain_db", boost).apply()
+    }
 
     private val _gateState   = MutableStateFlow(GateState())
     private val _eqState     = MutableStateFlow(EqState())
@@ -89,6 +103,8 @@ class AudioViewModel @Inject constructor(
     val selectedPreset: StateFlow<Preset?> = _selectedPreset
 
     init {
+        setMicrophoneGain(context.getSharedPreferences("micup_prefs", Context.MODE_PRIVATE)
+            .getFloat("microphone_gain_db", 0f))
         viewModelScope.launch { presetManager.loadAll() }
         viewModelScope.launch { pluginManager.scanAll() }
     }
@@ -222,6 +238,7 @@ class AudioViewModel @Inject constructor(
     fun applyPreset(preset: Preset) {
         _selectedPreset.value = preset
         val e = preset.effects
+        setMicrophoneGain(e.microphoneGainDb)
         setGateEnabled(e.gateEnabled);     setGateThreshold(e.gateThreshold)
         setGateAttack(e.gateAttack);       setGateRelease(e.gateRelease)
         setEqEnabled(e.eqEnabled);         e.eqBands.forEachIndexed { i, db -> setEqBand(i, db) }
@@ -242,6 +259,7 @@ class AudioViewModel @Inject constructor(
         val preset = Preset(
             name    = name,
             effects = EffectState(
+                microphoneGainDb = _microphoneGainDb.value,
                 gateEnabled   = _gateState.value.enabled,
                 gateThreshold = _gateState.value.thresholdDb,
                 gateAttack    = _gateState.value.attackMs,

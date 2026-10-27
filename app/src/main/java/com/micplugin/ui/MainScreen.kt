@@ -33,6 +33,7 @@ fun MainScreen(navController: NavController, vm: AudioViewModel = hiltViewModel(
     val pitchState  by vm.pitchState.collectAsState()
     val bypass      by vm.masterBypass.collectAsState()
     val monitoring  by vm.monitoringEnabled.collectAsState()
+    val microphoneGainDb by vm.microphoneGainDb.collectAsState()
     val presets     by vm.presets.collectAsState()
     val selectedPreset by vm.selectedPreset.collectAsState()
     val pluginSlots by vm.pluginSlots.collectAsState()
@@ -195,6 +196,21 @@ fun MainScreen(navController: NavController, vm: AudioViewModel = hiltViewModel(
                         uncheckedTrackColor = StudioColors.Border,
                     ),
                 )
+            }
+        }
+
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(8.dp),
+            color = StudioColors.Card,
+            border = BorderStroke(1.dp, StudioColors.Border),
+        ) {
+            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                ParamSlider("Mic Boost", microphoneGainDb, vm::setMicrophoneGain,
+                    0f..36f, " dB")
+                Text("0 dB = normal · +36 dB ≈ 63×. Lower boost if audio distorts.",
+                    fontSize = 10.sp, color = StudioColors.TextMuted)
+                TextButton(onClick = { vm.setMicrophoneGain(0f) }) { Text("Reset boost") }
             }
         }
 
