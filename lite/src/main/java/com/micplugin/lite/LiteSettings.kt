@@ -13,6 +13,7 @@ data class LiteSettings(
     val presetId: String? = "natural",
     val monitoring: Boolean = false,
     val noiseReduction: Boolean = true,
+    val noiseThresholdDb: Float = -50f,
 )
 
 data class LitePreset(val id: String, val name: String, val description: String,
@@ -47,6 +48,7 @@ class LiteSettingsStore(context: Context) {
         prefs.getString("preset", "natural")?.takeIf { id -> LitePresets.all.any { it.id == id } },
         monitoring = prefs.getBoolean("monitoring", false),
         noiseReduction = prefs.getBoolean("noise_reduction", true),
+        noiseThresholdDb = finite(prefs.getFloat("noise_threshold_db", -50f), -70f, -20f, -50f),
     ))
     val state: StateFlow<LiteSettings> = _state
 
@@ -55,9 +57,10 @@ class LiteSettingsStore(context: Context) {
         prefs.edit().putFloat("microphone_db", value.microphoneDb).putFloat("output_db", value.outputDb)
             .putFloat("volume", value.volume).putString("input", value.inputKey)
             .putString("output", value.outputKey).putString("preset", value.presetId ?: "")
-            .putBoolean("monitoring", value.monitoring).putBoolean("noise_reduction", value.noiseReduction).apply()
+            .putBoolean("monitoring", value.monitoring).putBoolean("noise_reduction", value.noiseReduction).putFloat("noise_threshold_db", value.noiseThresholdDb).apply()
     }
     fun noiseReduction(enabled: Boolean) = save(state.value.copy(noiseReduction = enabled))
+    fun noiseThreshold(db: Float) = save(state.value.copy(noiseThresholdDb = finite(db, -70f, -20f, -50f)))
     fun monitoring(enabled: Boolean) = save(state.value.copy(monitoring = enabled))
     fun microphone(db: Float) = save(state.value.copy(microphoneDb = finite(db, 0f, 36f, 0f), presetId = null))
     fun output(db: Float) = save(state.value.copy(outputDb = finite(db, 0f, 24f, 0f), presetId = null))

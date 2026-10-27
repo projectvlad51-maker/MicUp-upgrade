@@ -29,6 +29,7 @@ fun LiteScreen(
     onMonitoring: (Boolean) -> Unit = {},
     echo: com.micplugin.service.EchoCancellationState = com.micplugin.service.EchoCancellationState(),
     onNoiseReduction: (Boolean) -> Unit = {},
+    onNoiseThreshold: (Float) -> Unit = {},
     noiseReduction: com.micplugin.service.NoiseReductionState = com.micplugin.service.NoiseReductionState(),
 ) {
     MaterialTheme(colorScheme = LiteColors) {
@@ -86,8 +87,12 @@ fun LiteScreen(
                         Switch(checked = settings.noiseReduction, onCheckedChange = null)
                     }
                     if (audio.running && settings.noiseReduction) Text(
-                        if (noiseReduction.active) "Системное шумоподавление включено" else "Шумоподавление не предоставлено устройством",
+                        if (noiseReduction.active) "Noise Gate и системное шумоподавление включены" else "Noise Gate включён: приглушает шум в паузах",
                         color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                    if (settings.noiseReduction) {
+                        LiteSlider("Порог шума", settings.noiseThresholdDb, -70f..-20f, "дБ", "noise_threshold", onNoiseThreshold)
+                        Text("Если тихие слова пропадают, уменьшите порог. Пресеты его не меняют.", fontSize = 11.sp)
+                    }
                     LiteSlider("Усиление микрофона", settings.microphoneDb, 0f..36f, "дБ", "mic_gain", onMicrophone)
                     Text("Без эквалайзера, реверберации и изменения высоты голоса. Пики ограничиваются автоматически.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)

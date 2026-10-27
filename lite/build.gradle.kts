@@ -5,12 +5,15 @@ plugins {
 android {
     namespace = "com.micplugin.lite"
     compileSdk = 34
+    ndkVersion = "26.3.11579264"
     defaultConfig {
         applicationId = "com.micplugin.lite"
         minSdk = 26
         targetSdk = 34
-        versionCode = 10001
-        versionName = "1.0.1"
+        versionCode = 10002
+        versionName = "1.0.2"
+        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
+        externalNativeBuild { cmake { cppFlags += "-std=c++17"; arguments += "-DANDROID_STL=c++_shared" } }
     }
     sourceSets.getByName("main").java.srcDir(rootProject.file("shared/audio"))
     buildTypes {
@@ -19,7 +22,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             signingConfig = signingConfigs.getByName("debug")
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
     compileOptions {
@@ -27,7 +30,8 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
-    buildFeatures { compose = true; buildConfig = true }
+    externalNativeBuild { cmake { path = file("src/main/cpp/CMakeLists.txt"); version = "3.22.1" } }
+    buildFeatures { compose = true; buildConfig = true; prefab = true }
     composeOptions { kotlinCompilerExtensionVersion = "1.5.8" }
     testOptions { unitTests.isIncludeAndroidResources = true }
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
@@ -41,6 +45,7 @@ dependencies {
     implementation(libs.lifecycle.runtime.ktx)
     implementation(libs.coroutines.android)
     implementation(libs.core.ktx)
+    implementation(libs.oboe)
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.12.2")
     testImplementation("androidx.compose.ui:ui-test-junit4")

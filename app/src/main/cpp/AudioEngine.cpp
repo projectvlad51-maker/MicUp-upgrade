@@ -1,8 +1,10 @@
 #include "AudioEngine.h"
+#ifndef MICUP_LITE_NATIVE
 #include "PluginHost.h"
 #include "ClapHost.h"
 #include "Vst3Bridge.h"
 #include "Lv2Host.h"
+#endif
 
 #include <jni.h>
 #include <android/log.h>
@@ -39,15 +41,8 @@ static void dispatchToKotlin(const float* buf, int32_t numFrames) {
     jfloatArray arr = env->NewFloatArray(numFrames);
     if (arr) {
         env->SetFloatArrayRegion(arr, 0, numFrames, buf);
-        jobject jSize = env->CallStaticObjectMethod(
-            env->FindClass("java/lang/Integer"),
-            env->GetStaticMethodID(env->FindClass("java/lang/Integer"),
-                "valueOf", "(I)Ljava/lang/Integer;"),
-            (jint)numFrames
-        );
-        env->CallObjectMethod(gMonitorCallback, gInvokeMethod, arr, jSize);
+        env->CallVoidMethod(gMonitorCallback, gInvokeMethod, arr, static_cast<jint>(numFrames));
         env->DeleteLocalRef(arr);
-        if (jSize) env->DeleteLocalRef(jSize);
     }
     if (attached) gJvm->DetachCurrentThread();
 }
@@ -131,12 +126,12 @@ bool AudioEngine::openStreams() {
 
     // ─ Input stream (microphone capture) ─────────────────────────────────────
     auto result = builder
-        .setDirection(oboe::Direction::Input)
+        .setDeviceId(inputDeviceId_)
+        ->setDirection(oboe::Direction::Input)
         ->setInputPreset(oboe::InputPreset::VoiceCommunication)
-        ->setPrivacySensitiveMode(oboe::PrivacySensitiveMode::Disabled)
         ->setSessionId(oboe::SessionId::Allocate)
         ->setPerformanceMode(oboe::PerformanceMode::LowLatency)
-        ->setSharingMode(oboe::SharingMode::Shared)
+        ->setSharingMode(oboe::SharingMode::Exclusive)
         ->setFormat(oboe::AudioFormat::Float)
         ->setChannelCount(1)
         ->setSampleRate(48000)
@@ -153,9 +148,10 @@ bool AudioEngine::openStreams() {
     LOGI("Input stream opened: %dHz, %d frames/burst", sampleRate_, framesPerBurst_);
 
     // ─ Output stream (playback → VOICE_COMMUNICATION) ────────────────────────
-    builder.setDirection(oboe::Direction::Output)
+    builder.setDeviceId(oboe::kUnspecified)
+           ->setDirection(oboe::Direction::Output)
            ->setPerformanceMode(oboe::PerformanceMode::LowLatency)
-           ->setSharingMode(oboe::SharingMode::Shared)
+           ->setSharingMode(oboe::SharingMode::Exclusive)
            ->setFormat(oboe::AudioFormat::Float)
            ->setChannelCount(1)
            ->setSampleRate(sampleRate_)
@@ -239,9 +235,11 @@ oboe::DataCallbackResult AudioEngine::onAudioReady(
     }
 
     // Process external plugins
+#ifndef MICUP_LITE_NATIVE
     if (pluginHost_ && !params_.masterBypass.load(std::memory_order_relaxed)) {
         pluginHost_->process(out, numFrames, sampleRate_);
     }
+#endif
 
     microphoneGain_.process(out, numFrames,
         params_.masterBypass.load(std::memory_order_relaxed) ? 0.0f :
@@ -305,23 +303,10 @@ void AudioEngine::processEffectsChain(float* buf, int32_t frames) {
 
 // ─── Noise Gate ──────────────────────────────────────────────────────────────
 void AudioEngine::dsp_noiseGate(float* buf, int32_t frames) {
-    float threshLin  = dBToLin(params_.gateThresholdDb.load(std::memory_order_relaxed));
-    float attackCoef = 1.0f - std::exp(-1.0f / (params_.gateAttackMs.load(std::memory_order_relaxed)
-                        * 0.001f * sampleRate_));
-    float releaseCoef= 1.0f - std::exp(-1.0f / (params_.gateReleaseMs.load(std::memory_order_relaxed)
-                        * 0.001f * sampleRate_));
-
-    for (int i = 0; i < frames; i++) {
-        // RMS with single-pole smoothing
-        float x2 = buf[i] * buf[i];
-        gateRms_ = gateRms_ * 0.995f + x2 * 0.005f;
-        float rms = std::sqrt(gateRms_);
-
-        float target = (rms > threshLin) ? 1.0f : 0.0f;
-        float coef   = (target > gateEnv_) ? attackCoef : releaseCoef;
-        gateEnv_    += coef * (target - gateEnv_);
-        buf[i]      *= gateEnv_;
-    }
+    noiseGate_.process(buf, frames,
+        params_.gateThresholdDb.load(std::memory_order_relaxed),
+        params_.gateAttackMs.load(std::memory_order_relaxed),
+        params_.gateReleaseMs.load(std::memory_order_relaxed), static_cast<float>(sampleRate_));
 }
 
 // ─── 10-band EQ ──────────────────────────────────────────────────────────────
@@ -425,17 +410,28 @@ void AudioEngine::dsp_pitchShift(float* buf, int32_t frames) {
 using namespace micplugin;
 
 static AudioEngine* gEngine    = nullptr;
+#ifndef MICUP_LITE_NATIVE
 static PluginHost*  gPluginHost = nullptr;
+#endif
 
 extern "C" {
 
 JNIEXPORT jlong JNICALL
 Java_com_micplugin_audio_OboeEngine_nativeCreate(JNIEnv*, jobject) {
     auto* engine = new AudioEngine();
-    auto* host   = new PluginHost();
+    gEngine = engine;
+#ifndef MICUP_LITE_NATIVE
+    auto* host = new PluginHost();
     engine->setPluginHost(host);
-    gEngine    = engine;
     gPluginHost = host;
+#else
+    // Lite retains the original gate and amplitude processing, without voice colouring.
+    auto& params = engine->params();
+    params.eqEnabled.store(false);
+    params.compEnabled.store(false);
+    params.reverbEnabled.store(false);
+    params.pitchEnabled.store(false);
+#endif
     return reinterpret_cast<jlong>(engine);
 }
 
@@ -443,9 +439,11 @@ JNIEXPORT void JNICALL
 Java_com_micplugin_audio_OboeEngine_nativeDestroy(JNIEnv*, jobject, jlong handle) {
     auto* engine = reinterpret_cast<AudioEngine*>(handle);
     delete engine;
+    gEngine = nullptr;
+#ifndef MICUP_LITE_NATIVE
     delete gPluginHost;
-    gEngine     = nullptr;
     gPluginHost = nullptr;
+#endif
 }
 
 JNIEXPORT jboolean JNICALL
@@ -525,6 +523,7 @@ Java_com_micplugin_audio_OboeEngine_nativeGetLevels(JNIEnv* env, jobject, jlong 
     return arr;
 }
 
+#ifndef MICUP_LITE_NATIVE
 JNIEXPORT jlong JNICALL
 Java_com_micplugin_audio_OboeEngine_nativeLoadPlugin(
     JNIEnv* env, jobject, jlong handle, jstring soPath, jint formatId) {
@@ -546,6 +545,13 @@ JNIEXPORT void JNICALL
 Java_com_micplugin_audio_OboeEngine_nativeSetPluginParam(
     JNIEnv*, jobject, jlong handle, jlong pluginHandle, jint paramId, jfloat value) {
     if (gPluginHost) gPluginHost->setPluginParam(pluginHandle, paramId, value);
+}
+
+#endif
+
+JNIEXPORT void JNICALL
+Java_com_micplugin_audio_OboeEngine_nativeSetInputDevice(JNIEnv*, jobject, jlong handle, jint id) {
+    reinterpret_cast<AudioEngine*>(handle)->setInputDevice(id);
 }
 
 JNIEXPORT jboolean JNICALL
@@ -579,13 +585,13 @@ Java_com_micplugin_audio_OboeEngine_nativeSetMonitorCallback(
     if (callback) {
         gMonitorCallback = env->NewGlobalRef(callback);
         jclass cls = env->GetObjectClass(gMonitorCallback);
-        gInvokeMethod = env->GetMethodID(cls, "invoke",
-            "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;");
+        gInvokeMethod = env->GetMethodID(cls, "onAudioBuffer", "([FI)V");
     }
 }
 
 
 
+#ifndef MICUP_LITE_NATIVE
 JNIEXPORT jstring JNICALL
 Java_com_micplugin_audio_OboeEngine_nativeGetPluginParams(
     JNIEnv* env, jobject, jlong /*engineHandle*/, jlong pluginHandle) {
@@ -602,5 +608,7 @@ Java_com_micplugin_audio_OboeEngine_nativeGetPluginParams(
     }
     return env->NewStringUTF(json.c_str());
 }
+
+#endif
 
 } // extern "C"

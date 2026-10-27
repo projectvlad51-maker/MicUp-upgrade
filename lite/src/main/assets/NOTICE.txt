@@ -5,4 +5,6 @@ Original MIT license: Copyright (c) 2026 Gray; see LICENSE-MicUp.txt.
 This repository contains modified MicUp builds and a separate minimal Lite app.
 AndroidX/Jetpack Compose, Kotlin and kotlinx.coroutines are used under Apache License 2.0.
 See LICENSE-Apache-2.0.txt and the upstream projects' notices.
+Oboe 1.8.1 is provided by Google under Apache License 2.0.
+The native capture and processing code is derived from MicUp and shared with the full app.
 The Android platform supplies the audio APIs and LoudnessEnhancer implementation.

@@ -3,195 +3,155 @@ package com.micplugin.lite
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
-import android.media.*
-import android.os.Build
-import android.os.Process
 import androidx.core.content.ContextCompat
-import com.micplugin.service.SpeakerBoostController
+import com.micplugin.audio.NativeAudioDriver
+import com.micplugin.audio.OboeEngine
 import com.micplugin.service.EchoCancellation
 import com.micplugin.service.NoiseReduction
-import com.micplugin.service.MicrophoneSharingGuard
+import com.micplugin.service.SoftwareLoopback
+import com.micplugin.service.SpeakerBoostState
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlin.math.abs
-import kotlin.math.log10
-import kotlin.math.sqrt
 
+/** A small UI/service around the original MicUp engine and queued playback. */
 data class LiteRunState(val running: Boolean = false, val inputDb: Float = -100f,
     val outputDb: Float = -100f, val error: String? = null, val routeWarning: String? = null)
 
-class LiteEngine(private val context: Context, private val settings: LiteSettingsStore,
-    val devices: LiteDeviceCatalog) {
+internal interface LitePlayback {
+    val boost: StateFlow<SpeakerBoostState>
+    val running: Boolean
+    fun configure(settings: LiteSettings, deviceId: Int)
+    fun start(monitoring: Boolean)
+    fun write(samples: FloatArray, count: Int)
+    fun stop()
+}
+private class OriginalPlayback(private val context: Context) : LitePlayback {
+    override val boost get() = SoftwareLoopback.speakerBoostState
+    override val running get() = SoftwareLoopback.isRunning
+    override fun configure(settings: LiteSettings, deviceId: Int) {
+        SoftwareLoopback.setVoipMode(context, true)
+        SoftwareLoopback.setMonitorVolume(settings.volume)
+        SoftwareLoopback.setMonitorEnabled(settings.monitoring)
+        SoftwareLoopback.setSpeakerBoost(settings.outputDb)
+        SoftwareLoopback.setOutputDevice(context, deviceId)
+    }
+    override fun start(monitoring: Boolean) = SoftwareLoopback.start(context, monitoring)
+    override fun write(samples: FloatArray, count: Int) = SoftwareLoopback.writeProcessed(samples, count)
+    override fun stop() = SoftwareLoopback.stop()
+}
+
+class LiteEngine internal constructor(private val context: Context, private val settings: LiteSettingsStore,
+    val devices: LiteDeviceCatalog, private val native: NativeAudioDriver, private val playback: LitePlayback) {
+    constructor(context: Context, settings: LiteSettingsStore, devices: LiteDeviceCatalog) :
+        this(context, settings, devices, OboeEngine(), OriginalPlayback(context))
+
     private val _state = MutableStateFlow(LiteRunState())
     val state: StateFlow<LiteRunState> = _state
-    val outputBoost = SpeakerBoostController()
+    val outputBoostState get() = playback.boost
     val echo = EchoCancellation()
     val noiseReduction = NoiseReduction()
-    @Volatile private var running = false
-    @Volatile private var recorder: AudioRecord? = null
-    @Volatile private var thread: Thread? = null
-    private val sharing = MicrophoneSharingGuard(context, { recorder?.audioSessionId ?: -1 }) {
-        if (running) {
-            _state.value = _state.value.copy(error = "Android передал микрофон другому приложению. MicUp Lite остановлен для звонка.")
-            stop()
-            onFailure?.invoke()
-        }
-    }
+    private val scope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
+    private var updates: Job? = null
+    private var appliedInputId = 0
+    private var captureSession = -1
     @Volatile var onFailure: (() -> Unit)? = null
 
     fun permissionDenied() { _state.value = _state.value.copy(error = "Разрешите доступ к микрофону") }
     fun startDenied() { _state.value = _state.value.copy(error = "Android не разрешил запуск. Откройте MicUp Lite и повторите.") }
 
     fun start(): Boolean {
-        if (running) return true
-        if (thread?.isAlive == true) return false
+        if (state.value.running) return true
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            _state.value = LiteRunState(error = "Разрешите доступ к микрофону")
-            return false
+            permissionDenied(); return false
         }
-        val manager = devices.manager
-        val previousMode = manager.mode
-        if (MicrophoneSharingGuard.communicationBusy(previousMode)) {
-            _state.value = LiteRunState(error = "Идёт звонок или связь другого приложения. Микрофон оставлен мессенджеру.")
-            return false
-        }
-        var record: AudioRecord? = null
-        var track: AudioTrack? = null
-        try {
-            manager.mode = AudioManager.MODE_IN_COMMUNICATION
-            val formatIn = AudioFormat.Builder().setSampleRate(48000).setEncoding(AudioFormat.ENCODING_PCM_FLOAT)
-                .setChannelMask(AudioFormat.CHANNEL_IN_MONO).build()
-            val formatOut = AudioFormat.Builder().setSampleRate(48000).setEncoding(AudioFormat.ENCODING_PCM_FLOAT)
-                .setChannelMask(AudioFormat.CHANNEL_OUT_MONO).build()
-            val inputMin = AudioRecord.getMinBufferSize(48000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_FLOAT)
-            val outputMin = AudioTrack.getMinBufferSize(48000, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_FLOAT)
-            require(inputMin > 0 && outputMin > 0) { "Формат аудио недоступен" }
-            // Communication capture provides the system echo-reference path for speaker playback.
-            val recordBuilder = AudioRecord.Builder().setAudioSource(MediaRecorder.AudioSource.VOICE_COMMUNICATION)
-                .setAudioFormat(formatIn).setBufferSizeInBytes(maxOf(inputMin * 2, 8192))
-            if (Build.VERSION.SDK_INT >= 30) recordBuilder.setPrivacySensitive(false)
-            record = recordBuilder.build()
-            track = AudioTrack.Builder().setAudioAttributes(AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
-                .setAudioFormat(formatOut).setBufferSizeInBytes(maxOf(outputMin * 2, 8192))
-                .setTransferMode(AudioTrack.MODE_STREAM).build()
-            check(record.state == AudioRecord.STATE_INITIALIZED && track.state == AudioTrack.STATE_INITIALIZED)
-            recorder = record
-            echo.attach(record.audioSessionId)
-            noiseReduction.attach(record.audioSessionId, settings.state.value.noiseReduction)
-            applyRoute(record, track, settings.state.value, devices.state.value)
-            outputBoost.setGain(settings.state.value.outputDb)
-            outputBoost.attach(track.audioSessionId)
-            track.setVolume(if (settings.state.value.monitoring) settings.state.value.volume else 0f)
-            record.startRecording()
-            check(record.recordingState == AudioRecord.RECORDSTATE_RECORDING)
-            track.play()
-            running = true
+        // Match the original: do not reject MODE_IN_COMMUNICATION or stop on recording callbacks.
+        // Android decides whether concurrent recording is available on the actual device.
+        return try {
+            val s = settings.state.value
+            configure(s)
+            native.setMonitorCallback(playback::write)
+            check(native.start()) { "Не удалось запустить исходный аудиодвижок MicUp" }
+            attachEffects(s)
+            playback.start(s.monitoring)
+            check(playback.running) { "Не удалось запустить вывод звука" }
             _state.value = _state.value.copy(running = true, error = null)
-            sharing.start()
-            val input = record
-            val output = track
-            thread = Thread({ stream(input, output, previousMode) }, "MicUp-Lite-Audio").also { it.start() }
-            return true
+            observeSettings()
+            true
         } catch (e: RuntimeException) {
-            sharing.stop()
-            outputBoost.detach()
-            echo.detach()
-            noiseReduction.detach()
-            record?.release(); track?.release(); recorder = null
-            restoreMode(previousMode)
-            _state.value = LiteRunState(error = "Не удалось запустить звук: ${e.message ?: "ошибка устройства"}")
-            return false
+            stop()
+            _state.value = _state.value.copy(error = e.message ?: "Не удалось запустить звук")
+            false
         }
     }
 
     fun stop() {
-        sharing.stop()
-        running = false
-        try { recorder?.stop() } catch (_: RuntimeException) {}
-        thread?.interrupt()
-        thread?.join(1000)
+        updates?.cancel(); updates = null
+        // Stop capture before deleting its callback or releasing playback/effects.
+        native.stop()
+        native.setMonitorCallback(null)
+        echo.detach(); noiseReduction.detach(); captureSession = -1
+        playback.stop()
+        _state.value = _state.value.copy(running = false, inputDb = -100f, outputDb = -100f)
     }
 
-    private fun stream(input: AudioRecord, output: AudioTrack, previousMode: Int) {
-        var failed = false
-        try {
-            try { Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO) } catch (_: RuntimeException) {}
-            val samples = FloatArray(512)
-            val processor = LiteGainProcessor()
-            var last: LiteSettings? = null
-            var routes: LiteDevices? = null
-            var blocks = 0
-            while (running) {
-                val current = settings.state.value
-                val catalog = devices.state.value
-                if (current.inputKey != last?.inputKey || current.outputKey != last?.outputKey || catalog != routes) {
-                    applyRoute(input, output, current, catalog)
-                    routes = catalog
-                }
-                if (current.noiseReduction != last?.noiseReduction) noiseReduction.setEnabled(current.noiseReduction)
-                if (current.outputDb != last?.outputDb) outputBoost.setGain(current.outputDb)
-                if (current.volume != last?.volume || current.monitoring != last?.monitoring)
-                    output.setVolume(if (current.monitoring) current.volume else 0f)
-                last = current
-                val count = input.read(samples, 0, samples.size, AudioRecord.READ_BLOCKING)
-                if (!running) break
-                check(count > 0) { "Микрофон недоступен ($count)" }
-                val inputDb = level(samples, count)
-                processor.process(samples, count, current.microphoneDb)
-                if (++blocks % 10 == 0) _state.value = _state.value.copy(inputDb = inputDb, outputDb = level(samples, count))
-                var offset = 0
-                while (offset < count && running) {
-                    val written = output.write(samples, offset, count - offset, AudioTrack.WRITE_BLOCKING)
-                    check(written > 0) { "Выход недоступен ($written)" }
-                    offset += written
-                }
-            }
-        } catch (e: RuntimeException) {
-            if (running) { failed = true; _state.value = _state.value.copy(error = "Звук остановлен: ${e.message}") }
-        } finally {
-            running = false
-            sharing.stop()
-            outputBoost.detach()
-            echo.detach()
-            noiseReduction.detach()
-            try { input.stop() } catch (_: RuntimeException) {}
-            try { output.stop() } catch (_: RuntimeException) {}
-            input.release(); output.release(); recorder = null
-            restoreMode(previousMode)
-            thread = null
-            _state.value = _state.value.copy(running = false, inputDb = -100f, outputDb = -100f)
-            if (failed) onFailure?.invoke()
+    private fun configure(s: LiteSettings) {
+        val catalog = devices.state.value
+        val input = LiteDeviceCatalog.selected(s.inputKey, catalog.inputs)?.info?.id ?: 0
+        if (input != appliedInputId) {
+            if (state.value.running) native.stop()
+            native.setInputDevice(input); appliedInputId = input
+            if (state.value.running) check(native.start()) { "Не удалось переключить микрофон" }
+        }
+        // Same gate and gain as full MicUp; tone-changing processors stay disabled in Lite.
+        native.setParam(1, 10, 0f)
+        native.setParam(2, 5, 0f)
+        native.setParam(3, 3, 0f)
+        native.setParam(4, 1, 0f)
+        native.setParam(6, 0, 0f); native.setParam(6, 2, 0f)
+        native.setParam(0, 3, if (s.noiseReduction) 1f else 0f)
+        native.setParam(0, 0, s.noiseThresholdDb)
+        native.setParam(5, 0, s.microphoneDb)
+        noiseReduction.setEnabled(s.noiseReduction)
+        val output = LiteDeviceCatalog.selected(s.outputKey, catalog.outputs)
+            ?: LiteDeviceCatalog.automaticOutput(catalog.outputs)
+        playback.configure(s, output?.info?.id ?: -1)
+    }
+
+    private fun attachEffects(s: LiteSettings) {
+        val session = native.getInputSessionId()
+        if (session != captureSession) {
+            captureSession = session
+            echo.attach(session)
+            noiseReduction.attach(session, s.noiseReduction)
         }
     }
 
-    private fun applyRoute(input: AudioRecord, output: AudioTrack, s: LiteSettings, catalog: LiteDevices) {
-        val chosen = LiteDeviceCatalog.selected(s.outputKey, catalog.outputs) ?: LiteDeviceCatalog.automaticOutput(catalog.outputs)
-        val mic = LiteDeviceCatalog.selected(s.inputKey, catalog.inputs)
-        var applied = input.setPreferredDevice(mic?.info)
-        chosen?.info?.let { device ->
-            if (Build.VERSION.SDK_INT >= 31) applied = devices.manager.setCommunicationDevice(device) && applied
-            else {
-                @Suppress("DEPRECATION")
-                devices.manager.isSpeakerphoneOn = device.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
+    private fun observeSettings() {
+        updates?.cancel()
+        updates = scope.launch {
+            try {
+                var lastSettings: LiteSettings? = null
+                var lastDevices: LiteDevices? = null
+                while (isActive && state.value.running) {
+                    val s = settings.state.value
+                    val catalog = devices.state.value
+                    if (s != lastSettings || catalog != lastDevices) {
+                        configure(s); lastSettings = s; lastDevices = catalog
+                    }
+                    check(native.isRunning()) { "Аудиоустройство отключилось. Повторно включите звук." }
+                    attachEffects(s)
+                    val levels = native.getLevels()
+                    _state.value = _state.value.copy(inputDb = levels.getOrElse(0) { -100f },
+                        outputDb = levels.getOrElse(1) { -100f })
+                    delay(50)
+                }
+            } catch (e: CancellationException) { throw e }
+              catch (e: RuntimeException) {
+                stop()
+                _state.value = _state.value.copy(error = e.message ?: "Звук остановлен")
+                onFailure?.invoke()
             }
-            applied = output.setPreferredDevice(device) && applied
         }
-        _state.value = _state.value.copy(routeWarning = if (applied) null else "Android не подтвердил выбранное устройство")
-    }
-
-    private fun restoreMode(previous: Int) {
-        try {
-            if (devices.manager.mode == AudioManager.MODE_IN_COMMUNICATION) {
-                if (Build.VERSION.SDK_INT >= 31) devices.manager.clearCommunicationDevice()
-                devices.manager.mode = previous
-            }
-        } catch (_: RuntimeException) {}
-    }
-
-    private fun level(samples: FloatArray, count: Int): Float {
-        var sum = 0.0
-        for (i in 0 until count) sum += samples[i].toDouble() * samples[i]
-        return (20 * log10(sqrt(sum / count).coerceAtLeast(0.00001))).toFloat()
     }
 }

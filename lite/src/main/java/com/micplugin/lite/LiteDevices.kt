@@ -25,8 +25,7 @@ class LiteDeviceCatalog(context: Context) {
 
     fun refresh() {
         val inputs = manager.getDevices(AudioManager.GET_DEVICES_INPUTS).map(::describe).distinctBy { it.key }
-        val outputs = if (Build.VERSION.SDK_INT >= 31) manager.availableCommunicationDevices
-            else manager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).toList()
+        val outputs = manager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).toList()
         _state.value = LiteDevices(inputs, outputs.map(::describe).distinctBy { it.key })
     }
 
@@ -36,7 +35,7 @@ class LiteDeviceCatalog(context: Context) {
             AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> "Динамик телефона"
             AudioDeviceInfo.TYPE_BUILTIN_EARPIECE -> "Разговорный динамик"
             AudioDeviceInfo.TYPE_WIRED_HEADSET, AudioDeviceInfo.TYPE_WIRED_HEADPHONES -> "Проводные наушники"
-            AudioDeviceInfo.TYPE_BLUETOOTH_SCO, AudioDeviceInfo.TYPE_BLE_HEADSET -> "Bluetooth-гарнитура"
+            AudioDeviceInfo.TYPE_BLUETOOTH_SCO, AudioDeviceInfo.TYPE_BLE_HEADSET, AudioDeviceInfo.TYPE_BLUETOOTH_A2DP -> "Bluetooth-гарнитура"
             AudioDeviceInfo.TYPE_USB_HEADSET, AudioDeviceInfo.TYPE_USB_DEVICE -> "USB-аудио"
             else -> device.productName.toString()
         }
@@ -50,7 +49,7 @@ class LiteDeviceCatalog(context: Context) {
         fun automaticOutput(devices: List<LiteDevice>): LiteDevice? {
             val order = listOf(AudioDeviceInfo.TYPE_WIRED_HEADSET, AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
                 AudioDeviceInfo.TYPE_USB_HEADSET, AudioDeviceInfo.TYPE_USB_DEVICE, AudioDeviceInfo.TYPE_BLE_HEADSET,
-                AudioDeviceInfo.TYPE_BLUETOOTH_SCO, AudioDeviceInfo.TYPE_BUILTIN_SPEAKER, AudioDeviceInfo.TYPE_BUILTIN_EARPIECE)
+                AudioDeviceInfo.TYPE_BLUETOOTH_SCO, AudioDeviceInfo.TYPE_BLUETOOTH_A2DP, AudioDeviceInfo.TYPE_BUILTIN_SPEAKER, AudioDeviceInfo.TYPE_BUILTIN_EARPIECE)
             return order.firstNotNullOfOrNull { type -> devices.firstOrNull { it.type == type } } ?: devices.firstOrNull()
         }
     }

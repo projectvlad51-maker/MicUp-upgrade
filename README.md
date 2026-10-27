@@ -29,7 +29,7 @@ No PC required. No monthly subscription.
 -  **Open plugin files** — Tap a plugin file in your file manager to import it directly
 -  **Noise suppression and echo cancellation** — system effects on the capture session when supported, with a saved noise-suppression switch
 -  **Microphone check** — local monitoring defaults to off; the switch is saved independently of presets
--  **Call priority** — decline capture during an existing call and release it on a detected recording conflict
+-  **Original audio pipeline in both apps** — Oboe capture/callback, one queued SoftwareLoopback output, and no call-mode start blocker or recording-conflict shutdown
 -  **Shizuku connection** — a pinned row on every dashboard tab, direct manager launch, permission request, denied-permission settings action, and live reconnect status
 -  **Selectable playback modes** — Local Monitor or VoIP Playback, with Shizuku access managed separately
 -  **Live VU meters** — Input, output, and gain reduction metering
@@ -82,7 +82,7 @@ Shizuku and root access alone do not install a virtual microphone. The previous 
 ```bash
 git clone https://github.com/projectvlad51-maker/MicUp-upgrade.git
 cd MicUp-upgrade
-RELEASE_TAG=v1.0.13 ./gradlew :app:assembleRelease :lite:assembleRelease
+RELEASE_TAG=v1.0.14 ./gradlew :app:assembleRelease :lite:assembleRelease
 ```
 
 APKs are at `app/build/outputs/apk/release/app-release.apk` and `lite/build/outputs/apk/release/lite-release.apk`. Distributed APKs retain the development signing certificate for updates and have debugging disabled. [Installation and Play Protect](docs/INSTALLATION.md).
@@ -94,6 +94,8 @@ g++ -std=c++17 -O3 -ffast-math -Iapp/src/main/cpp app/src/test/cpp/MicrophoneGai
 /tmp/micup-gain-test
 g++ -std=c++17 -O3 -ffast-math -Iapp/src/main/cpp app/src/test/cpp/VoiceFiltersTest.cpp -o /tmp/micup-filter-test
 /tmp/micup-filter-test
+g++ -std=c++17 -O3 -ffast-math -Iapp/src/main/cpp app/src/test/cpp/NoiseGateTest.cpp -o /tmp/micup-noise-test
+/tmp/micup-noise-test
 ```
 
 ---
@@ -129,5 +131,7 @@ Made for Android · Built with Oboe, C++17, Jetpack Compose
 </div>
 
 ## MicUp Lite
+
+Both apps compile the same original native audio engine and queued playback code; Lite omits plugin hosts and disables tone-changing effects. [Baseline comparison](docs/AUDIO_BASELINE.md).
 
 A separate minimal app is available in [`lite/`](lite/README.md): VoIP playback, microphone/output gain, device selection, persistent settings, and ten level-only presets without tone-changing effects. It can be installed alongside the full version. Build with `./gradlew :lite:assembleRelease`.

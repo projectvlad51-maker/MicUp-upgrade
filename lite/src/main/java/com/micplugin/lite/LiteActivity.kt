@@ -25,7 +25,7 @@ class LiteActivity : ComponentActivity() {
             val settings by app.settings.state.collectAsState()
             val audio by app.engine.state.collectAsState()
             val devices by app.devices.state.collectAsState()
-            val boost by app.engine.outputBoost.state.collectAsState()
+            val boost by app.engine.outputBoostState.collectAsState()
             val echo by app.engine.echo.state.collectAsState()
             val noiseReduction by app.engine.noiseReduction.state.collectAsState()
             LiteScreen(settings, audio, devices, boost,
@@ -37,7 +37,8 @@ class LiteActivity : ComponentActivity() {
                 onVolume = app.settings::volume, onInputDevice = app.settings::input,
                 onOutputDevice = app.settings::outputDevice, onPreset = app.settings::preset,
                 onMonitoring = app.settings::monitoring, echo = echo,
-                onNoiseReduction = app.settings::noiseReduction, noiseReduction = noiseReduction)
+                onNoiseReduction = app.settings::noiseReduction, noiseReduction = noiseReduction,
+                onNoiseThreshold = app.settings::noiseThreshold)
         }
     }
     override fun onResume() { super.onResume(); app.devices.refresh() }

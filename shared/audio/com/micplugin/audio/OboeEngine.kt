@@ -1,14 +1,11 @@
 package com.micplugin.audio
 
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * JNI bridge to the C++ AudioEngine / PluginHost.
  * All native methods map 1-to-1 with the extern "C" functions in AudioEngine.cpp.
  */
-@Singleton
-class OboeEngine @Inject constructor() {
+class OboeEngine : NativeAudioDriver {
 
     private var engineHandle: Long = 0L
 
@@ -30,16 +27,16 @@ class OboeEngine @Inject constructor() {
 
     fun isNativeLoaded() = libraryLoaded && engineHandle != 0L
 
-    fun start(): Boolean = if (engineHandle != 0L) nativeStart(engineHandle) else false
-    fun stop() { if (engineHandle != 0L) nativeStop(engineHandle) }
+    override fun start(): Boolean = if (engineHandle != 0L) nativeStart(engineHandle) else false
+    override fun stop() { if (engineHandle != 0L) nativeStop(engineHandle) }
     fun isValid() = engineHandle != 0L
-    fun isRunning(): Boolean = engineHandle != 0L && nativeIsRunning(engineHandle)
+    override fun isRunning(): Boolean = engineHandle != 0L && nativeIsRunning(engineHandle)
 
-    fun setParam(effectId: Int, paramId: Int, value: Float) {
+    override fun setParam(effectId: Int, paramId: Int, value: Float) {
         if (engineHandle != 0L) nativeSetParam(engineHandle, effectId, paramId, value)
     }
 
-    fun getLevels(): FloatArray =
+    override fun getLevels(): FloatArray =
         if (engineHandle != 0L) nativeGetLevels(engineHandle) else floatArrayOf(-100f, -100f, 0f)
 
     fun loadPlugin(soPath: String, formatId: Int): Long =
@@ -52,18 +49,18 @@ class OboeEngine @Inject constructor() {
     fun getPluginParams(pluginHandle: Long): String =
         if (engineHandle != 0L) nativeGetPluginParams(engineHandle, pluginHandle) else "[]"
 
-    fun setMonitorCallback(callback: ((FloatArray, Int) -> Unit)?) {
-        if (engineHandle != 0L) nativeSetMonitorCallback(engineHandle, callback)
+    override fun setMonitorCallback(callback: ((FloatArray, Int) -> Unit)?) {
+        if (engineHandle != 0L) nativeSetMonitorCallback(engineHandle, callback?.let { function -> AudioMonitorCallback { samples, count -> function(samples, count) } })
     }
 
     fun setPluginParam(pluginHandle: Long, paramId: Int, value: Float) {
         if (engineHandle != 0L) nativeSetPluginParam(engineHandle, pluginHandle, paramId, value)
     }
 
-    fun getInputSessionId(): Int = if (engineHandle != 0L) nativeGetInputSessionId(engineHandle) else -1
+    override fun getInputSessionId(): Int = if (engineHandle != 0L) nativeGetInputSessionId(engineHandle) else -1
 
-    fun getSampleRate(): Int = if (engineHandle != 0L) nativeGetSampleRate(engineHandle) else 48000
-    fun getFramesPerBurst(): Int = if (engineHandle != 0L) nativeGetFramesPerBurst(engineHandle) else 128
+    override fun getSampleRate(): Int = if (engineHandle != 0L) nativeGetSampleRate(engineHandle) else 48000
+    override fun getFramesPerBurst(): Int = if (engineHandle != 0L) nativeGetFramesPerBurst(engineHandle) else 128
 
     fun destroy() {
         if (engineHandle != 0L) {
@@ -72,7 +69,10 @@ class OboeEngine @Inject constructor() {
         }
     }
 
+    override fun setInputDevice(id: Int) { if (engineHandle != 0L) nativeSetInputDevice(engineHandle, id) }
+
     // ── JNI declarations ──────────────────────────────────────────────────────
+    private external fun nativeSetInputDevice(handle: Long, deviceId: Int)
     private external fun nativeCreate(): Long
     private external fun nativeDestroy(handle: Long)
     private external fun nativeStart(handle: Long): Boolean
@@ -83,7 +83,7 @@ class OboeEngine @Inject constructor() {
     private external fun nativeUnloadPlugin(handle: Long, pluginHandle: Long)
     private external fun nativeSetPluginParam(handle: Long, pluginHandle: Long, paramId: Int, value: Float)
     private external fun nativeGetPluginParams(handle: Long, pluginHandle: Long): String
-    private external fun nativeSetMonitorCallback(handle: Long, callback: Any?)
+    private external fun nativeSetMonitorCallback(handle: Long, callback: AudioMonitorCallback?)
     private external fun nativeIsRunning(handle: Long): Boolean
     private external fun nativeGetInputSessionId(handle: Long): Int
     private external fun nativeGetSampleRate(handle: Long): Int

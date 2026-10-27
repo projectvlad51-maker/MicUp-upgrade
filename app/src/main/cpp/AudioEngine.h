@@ -1,5 +1,6 @@
 #pragma once
 #include "MicrophoneGain.h"
+#include "NoiseGate.h"
 #include "VoiceFilters.h"
 
 #include <oboe/Oboe.h>
@@ -165,6 +166,8 @@ public:
     EffectParams& params() { return params_; }
     void setPluginHost(PluginHost* h) { pluginHost_ = h; }
 
+    void setInputDevice(int32_t id) { inputDeviceId_ = id; }
+
     int32_t sampleRate()    const { return sampleRate_; }
     int32_t framesPerBurst() const { return framesPerBurst_; }
     int32_t inputSessionId() const { return inputSessionId_.load(std::memory_order_relaxed); }
@@ -198,6 +201,7 @@ private:
     std::atomic<bool> running_{false};
     std::atomic<int32_t> inputSessionId_{-1};
 
+    int32_t inputDeviceId_ = oboe::kUnspecified;
     int32_t sampleRate_    = 48000;
     int32_t framesPerBurst_ = 128;
 
@@ -216,8 +220,7 @@ private:
     // workBuf_ removed (unused)
 
     // ─ Gate state ─
-    float gateEnv_  = 0.0f;
-    float gateRms_  = 0.0f;
+    NoiseGate noiseGate_;
 
     // ─ EQ state ─
     static constexpr int kEqBands = 10;

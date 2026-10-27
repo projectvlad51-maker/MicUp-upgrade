@@ -70,9 +70,9 @@ object SoftwareLoopback {
 
     // ── Start / Stop ──────────────────────────────────────────────────────────
 
-    fun start(context: Context) {
+    fun start(context: Context, monitoring: Boolean? = null) {
         if (running) return
-        monitorEnabled = context.getSharedPreferences("micup_prefs", Context.MODE_PRIVATE)
+        monitorEnabled = monitoring ?: context.getSharedPreferences("micup_prefs", Context.MODE_PRIVATE)
             .getBoolean("monitoring_enabled", false)
         audioManager = context.getSystemService(AudioManager::class.java)
 
@@ -147,13 +147,10 @@ object SoftwareLoopback {
     fun writeProcessed(buf: FloatArray, size: Int) {
         if (!running || !monitorEnabled) return
         // Get buffer from pool or allocate (rare — only first QUEUE_CAP frames)
-        val copy = pool.poll() ?: FloatArray(size)
-        if (copy.size >= size) {
-            System.arraycopy(buf, 0, copy, 0, size)
-        } else {
-            // Pool buffer too small (shouldn't happen) — just copy
-            buf.copyInto(copy, 0, 0, minOf(size, copy.size))
-        }
+        if (size <= 0 || size > buf.size) return
+        val reused = pool.poll()
+        val copy = if (reused?.size == size) reused else FloatArray(size)
+        System.arraycopy(buf, 0, copy, 0, size)
         // Drop-oldest: if queue full, evict oldest and recycle it
         if (!queue.offer(copy)) {
             val dropped = queue.poll()   // remove oldest
@@ -223,8 +220,6 @@ object SoftwareLoopback {
     }
 
     private fun requestAudioFocus() {
-        // A diagnostic VoIP monitor must not take communication focus away from a call app.
-        if (voipMode) return
         val am = audioManager ?: return
         val listener = AudioManager.OnAudioFocusChangeListener { change ->
             when (change) {

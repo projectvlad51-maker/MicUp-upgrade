@@ -79,4 +79,14 @@ class LiteSettingsTest {
         assertFalse(LiteSettingsStore(context).state.value.noiseReduction)
     }
 
+    @Test fun gateThresholdPersistsAndPresetsDoNotOverrideIt() {
+        val store = LiteSettingsStore(context)
+        store.noiseThreshold(-62f)
+        LitePresets.all.forEach { store.preset(it.id); assertEquals(-62f, store.state.value.noiseThresholdDb, 0f) }
+        assertEquals(-62f, LiteSettingsStore(context).state.value.noiseThresholdDb, 0f)
+        store.noiseThreshold(Float.NaN)
+        assertEquals(-50f, store.state.value.noiseThresholdDb, 0f)
+        store.noiseThreshold(-100f)
+        assertEquals(-70f, store.state.value.noiseThresholdDb, 0f)
+    }
 }
