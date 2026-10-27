@@ -70,7 +70,7 @@ def main():
         for r in catalog:
             commit = subprocess.check_output(['git','rev-parse','--verify','refs/tags/'+r['tag']+'^{commit}'],cwd=ROOT,text=True).strip()
             payload = {'name':r['title'],'body':(ROOT/r['notes']).read_text(),
-                'make_latest':'true' if r['tag'].startswith('lite-') else 'false'}
+                'make_latest':'true' if r.get('latest', r['tag'].startswith('lite-')) else 'false'}
             existing = api('repos/'+REPO+'/releases/tags/'+r['tag'],missing_ok=True)
             if existing:
                 api('repos/'+REPO+'/releases/'+str(existing['id']),'PATCH',payload)

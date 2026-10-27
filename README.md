@@ -10,6 +10,12 @@
 
 ---
 
+## Текущая минимальная сборка на базе 1.0.6
+
+По последнему запросу пользователя актуальная полная сборка — [MicUp 1.0.16](https://github.com/projectvlad51-maker/MicUp-upgrade/releases/tag/micup-v1.0.16), исходники в [`classic/`](classic/README.md). Она напрямую основана на первоначальном архиве 1.0.6: исправлены крутилки компрессора и добавлены два регулятора усиления. Остальной код исходной версии сохранён; это проверяет `scripts/check_classic_scope.py`.
+
+Описание ниже относится к предыдущим вариантам в `app` и `lite`, сохранённым вместе с историей релизов.
+
 ## What is MicUp?
 
 MicUp is a real-time microphone processing app for Android. It captures your mic input, runs it through a DSP effects chain, and plays the processed audio for local monitoring. Both apps retain the original 1.0.6 capture and media-playback configuration. This app does not currently provide a virtual microphone input to other apps such as Discord, Teams, Zoom, or WhatsApp.

@@ -134,5 +134,16 @@
     "artifact_name": "MicUp-Lite-1.0.3.apk",
     "sha256": "d131ab9e9b273638ff401f073192c7fe872c11cb7b24d7f20ceef73bdf7c40a8",
     "size": 5586310
+  },
+  {
+    "tag": "micup-v1.0.16",
+    "title": "MicUp 1.0.16 — 1.0.6 + компрессор и громкость",
+    "source_ref": "micup-v1.0.16",
+    "notes": "docs/releases/micup-v1.0.16.md",
+    "artifact_ref": "2001ef0131bc304f4ed49e215a07250a6d32b9bc",
+    "artifact_name": "MicUp-1.0.16-from-1.0.6.apk",
+    "sha256": "0c2fc622e47113c07792c082aa8fe80dd43617391528da1db53c5dcbeb2aa751",
+    "size": 15663703,
+    "latest": true
   }
 ]
