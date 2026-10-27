@@ -1,8 +1,8 @@
 {
-  "source": "2dfeca218602b573431aa7f25195fdd1ceb701ee",
+  "source": "e1f25b59955874b777ea0a756ce806bea57488e4",
   "ref": "refs/heads/main",
-  "result": "failure",
+  "result": "success",
   "visibility": "private",
-  "time_utc": "2026-10-27T05:10:51.163759+00:00",
-  "error": "RuntimeError: GitHub API request failed: gh: Resource not accessible by integration (HTTP 403)"
+  "time_utc": "2026-10-27T05:13:03.433373+00:00",
+  "error": null
 }
