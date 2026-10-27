@@ -8,7 +8,7 @@ import subprocess
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-REPO = 'projectvlad51-maker/12'
+REPO = 'projectvlad51-maker/MicUp-upgrade'
 
 def run(args, **kwargs):
     return subprocess.run(args, cwd=ROOT, check=True, **kwargs)
@@ -39,6 +39,7 @@ def releases():
         yield r
 
 def main():
+    global REPO
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--publish',action='store_true',help='Actually create/update GitHub Releases')
     parser.add_argument('--make-public',action='store_true',help='Explicitly make repository public before publication')
@@ -50,7 +51,9 @@ def main():
     if not args.publish:
         print('Validation complete; no network requests or GitHub changes made.')
         return
-    if args.make_public:
+    metadata = api('repos/'+REPO)
+    REPO = metadata.get('full_name', REPO)
+    if args.make_public and metadata['visibility'] != 'public':
         try:
             api('repos/'+REPO,'PATCH',{'private':False})
         except RuntimeError as error:

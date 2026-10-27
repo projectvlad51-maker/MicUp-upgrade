@@ -6,7 +6,7 @@
 - Добавлены вкладки громкости, эффектов и плагинов, регуляторы системной громкости и MicUp, фильтры низких/высоких частот.
 - Увеличены элементы управления и улучшена компоновка на узких экранах. Проверено 18 тестов и 9 аудиопроверок.
 
-[Скачать APK](https://github.com/projectvlad51-maker/12/raw/661be9972318452483eec9cbd28fe383ccce6cbe/MicUp-1.0.10-audio-controls-debug.apk) · [Исходники](https://github.com/projectvlad51-maker/12/tree/micup-v1.0.10)
+[Скачать APK](https://github.com/projectvlad51-maker/MicUp-upgrade/raw/661be9972318452483eec9cbd28fe383ccce6cbe/MicUp-1.0.10-audio-controls-debug.apk) · [Исходники](https://github.com/projectvlad51-maker/MicUp-upgrade/tree/micup-v1.0.10)
 
 Размер: 21,171,771 байт. SHA-256: `888a9f5b43ad843e7ed78803967405d2f4f92e4483942154073aa81ba321a475`.
 
@@ -14,4 +14,4 @@ APK подписан ключом разработческой сборки. В�
 
 Работает только обработка и воспроизведение MicUp. VoIP и Shizuku не подменяют микрофон в WhatsApp/Telegram. Телефонные маршруты и усиление требуют проверки на конкретном устройстве.
 
-**Первоисточник:** [papergray/MicUp v1.0.6](https://github.com/papergray/MicUp/tree/v1.0.6). Оригинальный copyright: 2026 Gray, MIT. [Лицензия](https://github.com/projectvlad51-maker/12/blob/main/LICENSE) · [Авторство и зависимости](https://github.com/projectvlad51-maker/12/blob/main/THIRD_PARTY_NOTICES.md).
+**Первоисточник:** [papergray/MicUp v1.0.6](https://github.com/papergray/MicUp/tree/v1.0.6). Оригинальный copyright: 2026 Gray, MIT. [Лицензия](https://github.com/projectvlad51-maker/MicUp-upgrade/blob/main/LICENSE) · [Авторство и зависимости](https://github.com/projectvlad51-maker/MicUp-upgrade/blob/main/THIRD_PARTY_NOTICES.md).

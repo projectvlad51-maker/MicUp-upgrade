@@ -10,7 +10,7 @@
 - Плавное усиление и ограничитель пиков; системный усилитель выхода используется при наличии поддержки.
 - Один тихий статус при работающем микрофоне. Автоматического запуска записи при открытии приложения нет.
 
-[Скачать APK](https://github.com/projectvlad51-maker/12/raw/f9351cfd681a6c85b1dbbe9690876cf916ab5c90/MicUp-Lite-1.0.0.apk) · [Исходники](https://github.com/projectvlad51-maker/12/tree/lite-v1.0.0/lite)
+[Скачать APK](https://github.com/projectvlad51-maker/MicUp-upgrade/raw/f9351cfd681a6c85b1dbbe9690876cf916ab5c90/MicUp-Lite-1.0.0.apk) · [Исходники](https://github.com/projectvlad51-maker/MicUp-upgrade/tree/lite-v1.0.0/lite)
 
 Размер: 1,139,721 байт (около 1.14 МБ). SHA-256: `a5cc812f244532591fe5b79eefd32eb982b01e7765190802e0c1c0f58664847f`.
 
@@ -20,4 +20,4 @@ APK уменьшен R8 и подписан ключом разработчес�
 
 VoIP здесь означает прослушивание в MicUp Lite. **Этот APK не подменяет микрофон Telegram, WhatsApp или других приложений.** Усиление не снимает аппаратный предел телефона, а на большой громкости могут усиливаться шум и акустическая обратная связь.
 
-**Первоисточник:** [papergray/MicUp v1.0.6](https://github.com/papergray/MicUp/tree/v1.0.6), Copyright (c) 2026 Gray, MIT. Это модифицированная отдельная Lite-сборка, не официальный релиз автора. [Лицензия](https://github.com/projectvlad51-maker/12/blob/main/LICENSE) · [Авторство и зависимости](https://github.com/projectvlad51-maker/12/blob/main/THIRD_PARTY_NOTICES.md).
+**Первоисточник:** [papergray/MicUp v1.0.6](https://github.com/papergray/MicUp/tree/v1.0.6), Copyright (c) 2026 Gray, MIT. Это модифицированная отдельная Lite-сборка, не официальный релиз автора. [Лицензия](https://github.com/projectvlad51-maker/MicUp-upgrade/blob/main/LICENSE) · [Авторство и зависимости](https://github.com/projectvlad51-maker/MicUp-upgrade/blob/main/THIRD_PARTY_NOTICES.md).
