@@ -37,3 +37,4 @@ google-services.json
 # Local release-script caches
 __pycache__/
 publication-error.txt
+publication-visibility-error.txt

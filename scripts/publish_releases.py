@@ -56,6 +56,7 @@ def main():
         except RuntimeError as error:
             if not args.stage_private:
                 raise
+            Path('publication-visibility-error.txt').write_text(str(error))
             print('Public visibility update was not permitted:', error)
     visibility = api('repos/'+REPO)['visibility']
     if visibility != 'public' and not args.stage_private:
@@ -75,6 +76,10 @@ def main():
                 payload.update(tag_name=r['tag'],draft=False,prerelease=False)
                 api('repos/'+REPO+'/releases','POST',payload)
             if 'artifact_ref' in r:
+                uploaded = next((a for a in (existing or {}).get('assets', []) if a['name'] == r['artifact_name']), None)
+                if uploaded and uploaded.get('digest') == 'sha256:'+r['sha256'] and uploaded.get('size') == r['size']:
+                    print('Verified existing asset:', r['artifact_name'])
+                    continue
                 asset = Path(temp)/r['artifact_name']
                 with asset.open('wb') as stream:
                     run(['git','show',r['artifact_ref']+':'+r['artifact_name']],stdout=stream)

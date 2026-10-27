@@ -41,10 +41,15 @@ jobs:
           subprocess.run(['git','config','user.name','github-actions[bot]'],check=True)
           subprocess.run(['git','config','user.email','41898282+github-actions[bot]@users.noreply.github.com'],check=True)
           visibility = subprocess.run(['gh','api','repos/'+os.environ['GITHUB_REPOSITORY'],'--jq','.visibility'],capture_output=True,text=True)
+          release_check = subprocess.run(['gh','api','repos/'+os.environ['GITHUB_REPOSITORY']+'/releases?per_page=100'],capture_output=True,text=True)
+          catalog_tags = {r['tag'] for r in json.loads(Path('docs/release-catalog.json').read_text())}
+          confirmed = [{'tag':r['tag_name'],'draft':r['draft'],'assets':[a['name'] for a in r['assets']]} for r in json.loads(release_check.stdout) if r['tag_name'] in catalog_tags] if release_check.returncode == 0 else []
           report = {'source':git('rev-parse','HEAD'),'ref':os.environ['GITHUB_REF'],'result':os.environ['PUBLISH_RESULT'],
               'visibility': visibility.stdout.strip() if visibility.returncode == 0 else 'unknown',
               'time_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),
-              'error':Path('publication-error.txt').read_text()[-4000:] if Path('publication-error.txt').exists() else None}
+              'error':Path('publication-error.txt').read_text()[-4000:] if Path('publication-error.txt').exists() else None,
+              'visibility_error':Path('publication-visibility-error.txt').read_text()[-2000:] if Path('publication-visibility-error.txt').exists() else None,
+              'confirmed_releases':confirmed}
           probe = subprocess.run(['git','ls-remote','--exit-code','origin','refs/heads/publication-status'],capture_output=True,text=True)
           parent = []
           if probe.returncode == 0:
