@@ -1,9 +1,9 @@
 {
   "source": "f1d295a48714717f19ae865c1d1b48ff057a8335",
-  "ref": "refs/heads/main",
+  "ref": "refs/tags/lite-v1.0.3",
   "result": "success",
   "visibility": "public",
-  "time_utc": "2026-10-27T06:58:48.811104+00:00",
+  "time_utc": "2026-10-27T06:59:19.772712+00:00",
   "error": null,
   "visibility_error": null,
   "confirmed_releases": [
