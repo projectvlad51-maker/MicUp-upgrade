@@ -1,0 +1,1 @@
+MicUp Lite 1.0.0: VoIP playback, separate microphone/output gains, 10 level-only presets, persistent input/output selection. Original MicUp: https://github.com/papergray/MicUp (MIT, Copyright 2026 Gray). This is a modified standalone Lite app, not an official upstream release. It does not replace the microphone input of WhatsApp or Telegram.
