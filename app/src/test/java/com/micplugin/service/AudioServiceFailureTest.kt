@@ -38,4 +38,18 @@ class AudioServiceFailureTest {
         } finally { controller.destroy() }
     }
 
+    @Test fun unavailableRootBackendNeverReportsSuccessfulCapture() {
+        val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+        val prefs = context.getSharedPreferences("micup_prefs", android.content.Context.MODE_PRIVATE)
+        OriginalAudioDefaults.full(prefs)
+        prefs.edit().putString("playback_tier", VirtualMicTier.ROOT_MAGISK.name).commit()
+        val controller = Robolectric.buildService(AudioProcessingService::class.java).create()
+        val service = controller.get()
+        try {
+            assertEquals(Service.START_NOT_STICKY, service.onStartCommand(null, 0, 1))
+            assertTrue(service.audioEngine.notice.value.orEmpty().contains("Root"))
+            assertFalse(service.audioEngine.status.value.isRunning)
+            assertFalse(SoftwareLoopback.isRunning)
+        } finally { controller.destroy() }
+    }
 }

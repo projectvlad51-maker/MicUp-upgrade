@@ -19,24 +19,14 @@ object SoftwareLoopback {
     private var workerThread:  Thread?       = null
     private var audioManager:  AudioManager? = null
     private var selectedDeviceId: Int        = -1
-    @Volatile private var monitorEnabled:   Boolean    = false
+    @Volatile private var monitorEnabled:   Boolean    = true
     @Volatile private var running = false
     private var focusRequest: AudioFocusRequest? = null
-    private var voipMode = false
     private var monitorVolume = 1f
     private var focusMultiplier = 1f
-    private var previousAudioMode: Int? = null
     private val speakerBoost = SpeakerBoostController()
     val speakerBoostState = speakerBoost.state
     fun setSpeakerBoost(db: Float) = speakerBoost.setGain(db)
-
-    fun setVoipMode(context: Context, enabled: Boolean) {
-        if (voipMode == enabled) return
-        val restart = running
-        if (restart) stop()
-        voipMode = enabled
-        if (restart) start(context)
-    }
 
     fun setMonitorVolume(volume: Float) {
         monitorVolume = if (volume.isFinite()) volume.coerceIn(0f, 1f) else 1f
@@ -48,16 +38,12 @@ object SoftwareLoopback {
     }
 
     private fun playbackAttributes(): AudioAttributes = AudioAttributes.Builder()
-        .setUsage(if (voipMode) AudioAttributes.USAGE_VOICE_COMMUNICATION else AudioAttributes.USAGE_MEDIA)
+        .setUsage(AudioAttributes.USAGE_MEDIA)
         .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
         .build()
 
     private fun restoreAudioMode() {
-        val previous = previousAudioMode ?: return
-        try {
-            if (audioManager?.mode == AudioManager.MODE_IN_COMMUNICATION) audioManager?.mode = previous
-        } catch (e: Exception) { Log.e(TAG, "Cannot restore audio mode", e) }
-        previousAudioMode = null
+        try { audioManager?.mode = AudioManager.MODE_NORMAL } catch (_: Exception) {}
     }
 
     // Lock-free float queue — audio callback offers, worker thread drains
@@ -73,7 +59,7 @@ object SoftwareLoopback {
     fun start(context: Context, monitoring: Boolean? = null) {
         if (running) return
         monitorEnabled = monitoring ?: context.getSharedPreferences("micup_prefs", Context.MODE_PRIVATE)
-            .getBoolean("monitoring_enabled", false)
+            .getBoolean("monitoring_enabled", true)
         audioManager = context.getSystemService(AudioManager::class.java)
 
         val minBuf = AudioTrack.getMinBufferSize(SAMPLE_RATE,
@@ -83,10 +69,6 @@ object SoftwareLoopback {
         if (monitorTrack == null) { Log.e(TAG, "AudioTrack init failed"); return }
 
         try {
-            if (voipMode) {
-                previousAudioMode = audioManager?.mode
-                audioManager?.mode = AudioManager.MODE_IN_COMMUNICATION
-            }
             monitorTrack!!.play()
         } catch (e: Exception) {
             Log.e(TAG, "Cannot start playback", e)

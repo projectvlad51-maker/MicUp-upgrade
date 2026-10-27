@@ -12,7 +12,7 @@
 
 ## What is MicUp?
 
-MicUp is a real-time microphone processing app for Android. It captures your mic input, runs it through a DSP effects chain, and plays the processed audio for local monitoring. You can select media playback or Android communication playback. This app does not currently provide a virtual microphone input to other apps such as Discord, Teams, Zoom, or WhatsApp.
+MicUp is a real-time microphone processing app for Android. It captures your mic input, runs it through a DSP effects chain, and plays the processed audio for local monitoring. Both apps retain the original 1.0.6 capture and media-playback configuration. This app does not currently provide a virtual microphone input to other apps such as Discord, Teams, Zoom, or WhatsApp.
 
 No PC required. No monthly subscription.
 
@@ -27,11 +27,11 @@ No PC required. No monthly subscription.
 -  **Built-in DSP chain** — Noise Gate, 10-band EQ, Compressor, Reverb, Pitch Shifter
 -  **Plugin support** — Load LV2, CLAP, and VST3 native plugins (`.so`, `.clap`, `.lv2`)
 -  **Open plugin files** — Tap a plugin file in your file manager to import it directly
--  **Noise suppression and echo cancellation** — system effects on the capture session when supported, with a saved noise-suppression switch
--  **Microphone check** — local monitoring defaults to off; the switch is saved independently of presets
+-  **Original noise gate** — saved noise control without inserting extra Android capture effects
+-  **Microphone check** — the original default is on; the saved switch can silence local playback
 -  **Original audio pipeline in both apps** — Oboe capture/callback, one queued SoftwareLoopback output, and no call-mode start blocker or recording-conflict shutdown
 -  **Shizuku connection** — a pinned row on every dashboard tab, direct manager launch, permission request, denied-permission settings action, and live reconnect status
--  **Selectable playback modes** — Local Monitor or VoIP Playback, with Shizuku access managed separately
+-  **Four original choices** — VoIP, Software Loopback, Shizuku and Root; local transport matches 1.0.6, while missing system backends are explicitly marked unavailable
 -  **Live VU meters** — Input, output, and gain reduction metering
 -  **Preset system** — Save and load your effect configurations
 -  **Quiet foreground status** — one silent service notification, no repeated alert for unchanged status, removed when processing stops
@@ -53,9 +53,9 @@ No Play Store. No sign-in. Just install and go.
 
 1. Install the APK
 2. Grant microphone permission when prompted
-3. Tap the **power button** to grant microphone permission and start audio processing. Opening the app does not start audio or open storage settings automatically
+3. After microphone permission, opening the app starts audio as in the original. Use the **power button** to stop or restart it; storage settings open only when requested
 4. Adjust effects with the sliders and knobs. The voice-processing switch is on when effects are active; playback has its own switch and volume/boost controls
-5. In Settings, select **Local Monitor** or **VoIP Playback**, then use the power button to start audio. These modes control playback; they do not replace another app’s microphone input
+5. All four original mode choices are visible in both apps. VoIP and Software Loopback retain the original transport; Shizuku and Root show the unavailable system-backend reason. Adjust sound levels and noise gate independently; these controls do not replace another app’s microphone input
 
 ### Loading Plugins
 
@@ -82,7 +82,7 @@ Shizuku and root access alone do not install a virtual microphone. The previous 
 ```bash
 git clone https://github.com/projectvlad51-maker/MicUp-upgrade.git
 cd MicUp-upgrade
-RELEASE_TAG=v1.0.14 ./gradlew :app:assembleRelease :lite:assembleRelease
+RELEASE_TAG=v1.0.15 ./gradlew :app:assembleRelease :lite:assembleRelease
 ```
 
 APKs are at `app/build/outputs/apk/release/app-release.apk` and `lite/build/outputs/apk/release/lite-release.apk`. Distributed APKs retain the development signing certificate for updates and have debugging disabled. [Installation and Play Protect](docs/INSTALLATION.md).

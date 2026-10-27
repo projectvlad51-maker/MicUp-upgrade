@@ -41,8 +41,6 @@ fun MainScreen(navController: NavController, vm: AudioViewModel = hiltViewModel(
     val pitchState  by vm.pitchState.collectAsState()
     val bypass      by vm.masterBypass.collectAsState()
     val monitoring  by vm.monitoringEnabled.collectAsState()
-    val echo by vm.echoState.collectAsState()
-    val noiseReduction by vm.noiseReductionState.collectAsState()
     val noiseReductionEnabled by vm.noiseReductionEnabled.collectAsState()
     val microphoneGainDb by vm.microphoneGainDb.collectAsState()
     val presets     by vm.presets.collectAsState()
@@ -184,9 +182,7 @@ fun MainScreen(navController: NavController, vm: AudioViewModel = hiltViewModel(
             if (bypass) "Эффекты выключены" else "Эффекты включены") { vm.setMasterBypass(!it) }
         AudioToggleRow("Проверка микрофона", monitoring,
             if (monitoring) "Слышать себя: включено" else "Слышать себя: выключено", vm::setMonitoring)
-        if (status.isRunning && monitoring) Text(
-            if (echo.active) "Системное эхоподавление включено"
-            else "Эхоподавление недоступно: используйте наушники или выключите проверку",
+        if (monitoring) Text("Выключение проверки отключает звук MicUp. Для прослушивания используйте наушники.",
             fontSize = 11.sp, color = StudioColors.TextMuted)
 
         Surface(
@@ -205,10 +201,12 @@ fun MainScreen(navController: NavController, vm: AudioViewModel = hiltViewModel(
         }
 
         ControlPanel("Динамики и воспроизведение") {
-            PlaybackModeSelector(tier, vm::selectPlaybackTier)
-            Text(if (tier == VirtualMicTier.VOIP_STREAM) "Активный системный регулятор: разговорный звук / VoIP"
-                else "Активный системный регулятор: музыка / видео",
-                fontSize = 11.sp, color = StudioColors.Accent)
+            Text("Режим передачи · исходная конфигурация", fontSize = 11.sp, color = StudioColors.Accent)
+            VirtualMicTier.values().forEach { mode ->
+                TierRow(mode, mode == tier, isLocked = false, onSelect = { vm.selectPlaybackTier(mode) })
+            }
+            tier.unavailableReason?.let { Text(it, fontSize = 11.sp, color = StudioColors.TextMuted) }
+            Text("Громкость воспроизведения регулируется кнопками музыки / видео.", fontSize = 11.sp, color = StudioColors.TextMuted)
             ParamSlider("Громкость MicUp", monitorVolume * 100f, { vm.setMonitorVolume(it / 100f) },
                 0f..100f, " %")
             SpeakerBoostControl(speakerBoost, vm::setSpeakerBoost)
@@ -242,10 +240,9 @@ fun MainScreen(navController: NavController, vm: AudioViewModel = hiltViewModel(
 
         if (selectedTab == 1) {
         AudioToggleRow("Шумоподавление", noiseReductionEnabled,
-            "Системное подавление фонового шума", vm::setNoiseReduction)
+            "Исходный Noise Gate: приглушает шум в паузах", vm::setNoiseReduction)
         if (status.isRunning && noiseReductionEnabled) Text(
-            if (bypass) "Обработка выключена" else if (noiseReduction.active) "Шумоподавление включено"
-            else "Шумоподавление не предоставлено устройством", fontSize = 11.sp, color = StudioColors.TextMuted)
+            if (bypass) "Обработка выключена" else "Noise Gate включён", fontSize = 11.sp, color = StudioColors.TextMuted)
         EffectCard("Убрать гул и низкие частоты", filters.highPassEnabled,
             { vm.setVoiceFilters(filters.copy(highPassEnabled = it)) }) {
             ParamSlider("Срез низких частот", filters.highPassHz,

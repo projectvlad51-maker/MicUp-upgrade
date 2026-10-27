@@ -43,8 +43,9 @@ class LiteEngineTest {
         override val boost = MutableStateFlow(SpeakerBoostState())
         override var running = false
         var settings: LiteSettings? = null
+        var deviceId: Int = 0
         var received = floatArrayOf()
-        override fun configure(settings: LiteSettings, deviceId: Int) { this.settings = settings }
+        override fun configure(settings: LiteSettings, deviceId: Int) { this.settings = settings; this.deviceId = deviceId }
         override fun start(monitoring: Boolean) { running = true }
         override fun write(samples: FloatArray, count: Int) { received = samples.copyOf(count) }
         override fun stop() { running = false }
@@ -69,6 +70,7 @@ class LiteEngineTest {
         val d = Driver(); val p = Playback()
         val engine = LiteEngine(context,LiteSettingsStore(context),LiteDeviceCatalog(context),d,p)
         assertTrue(engine.start())
+        assertEquals(-1,p.deviceId)
         d.callback!!(floatArrayOf(0.1f,0.2f,0.3f),2)
         assertArrayEquals(floatArrayOf(0.1f,0.2f),p.received,0f)
         engine.stop()
@@ -76,7 +78,7 @@ class LiteEngineTest {
     }
     @Test fun allPresetsSetNativeGainWithoutEnablingToneProcessorsOrMonitoring() {
         val d = Driver(); val p = Playback(); val s = LiteSettingsStore(context)
-        s.noiseThreshold(-62f)
+        s.noiseThreshold(-62f); s.monitoring(false)
         val engine = LiteEngine(context,s,LiteDeviceCatalog(context),d,p)
         try {
             assertTrue(engine.start())
@@ -114,5 +116,14 @@ class LiteEngineTest {
         assertEquals(1,failures)
         assertTrue(engine.state.value.error.orEmpty().contains("Аудиоустройство"))
         engine.stop()
+    }
+    @Test fun unimplementedBackendCannotStartCaptureOrPretendToTransmit() {
+        val d = Driver(); val p = Playback(); val s = LiteSettingsStore(context)
+        s.mode(com.micplugin.service.VirtualMicTier.SHIZUKU_ADB)
+        val engine = LiteEngine(context,s,LiteDeviceCatalog(context),d,p)
+        assertFalse(engine.start())
+        assertEquals(0,d.starts); assertFalse(p.running)
+        assertFalse(engine.state.value.running)
+        assertTrue(engine.state.value.error.orEmpty().contains("Shizuku"))
     }
 }

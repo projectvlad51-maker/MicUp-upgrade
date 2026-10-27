@@ -1,7 +1,10 @@
 package com.micplugin.service
 
 import android.content.Context
+import android.media.AudioAttributes
+import android.media.AudioFormat
 import android.media.AudioManager
+import android.media.AudioTrack
 import androidx.test.core.app.ApplicationProvider
 import org.junit.After
 import org.junit.Assert.*
@@ -12,69 +15,49 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [28])
+@Config(sdk = [34])
 class PlaybackRoutingTest {
-    private lateinit var context: Context
-    private lateinit var audioManager: AudioManager
-
+    private val context get() = ApplicationProvider.getApplicationContext<Context>()
+    private val manager get() = context.getSystemService(AudioManager::class.java)
     @Before fun setup() {
-        context = ApplicationProvider.getApplicationContext()
         SoftwareLoopback.stop()
-        SoftwareLoopback.setVoipMode(context, false)
-        audioManager = context.getSystemService(AudioManager::class.java)
-        audioManager.mode = AudioManager.MODE_NORMAL
         context.getSharedPreferences("micup_prefs", Context.MODE_PRIVATE).edit().clear().commit()
+        manager.mode = AudioManager.MODE_NORMAL
     }
+    @After fun cleanup() { SoftwareLoopback.stop() }
+    private fun track(): AudioTrack = SoftwareLoopback::class.java.getDeclaredField("monitorTrack")
+        .apply { isAccessible = true }.get(SoftwareLoopback) as AudioTrack
 
-    @After fun cleanup() {
-        SoftwareLoopback.stop()
-        SoftwareLoopback.setVoipMode(context, false)
+    @Test fun actualPlaybackHasOriginalMediaSpeechFloatMonoConfiguration() {
+        SoftwareLoopback.start(context)
+        val t = track()
+        assertTrue(SoftwareLoopback.isRunning)
+        assertEquals(AudioAttributes.USAGE_MEDIA, t.audioAttributes.usage)
+        assertEquals(AudioAttributes.CONTENT_TYPE_SPEECH, t.audioAttributes.contentType)
+        assertEquals(AudioFormat.ENCODING_PCM_FLOAT, t.audioFormat)
+        assertEquals(48000, t.sampleRate)
+        assertEquals(1, t.channelCount)
+        assertEquals(AudioManager.MODE_NORMAL, manager.mode)
     }
-
-    @Test fun selectingVoipWhileStoppedWaitsForPlaybackAndRestoresModeOnStop() {
-        SoftwareLoopback.setVoipMode(context, true)
-        assertFalse(SoftwareLoopback.isRunning)
-        assertEquals(AudioManager.MODE_NORMAL, audioManager.mode)
+    @Test fun startingDuringCommunicationDoesNotRequestAnotherAudioMode() {
+        manager.mode = AudioManager.MODE_IN_COMMUNICATION
         SoftwareLoopback.start(context)
         assertTrue(SoftwareLoopback.isRunning)
-        assertEquals(AudioManager.MODE_IN_COMMUNICATION, audioManager.mode)
-        SoftwareLoopback.stop()
-        assertEquals(AudioManager.MODE_NORMAL, audioManager.mode)
+        assertEquals(AudioManager.MODE_IN_COMMUNICATION, manager.mode)
+        assertEquals(AudioAttributes.USAGE_MEDIA, track().audioAttributes.usage)
     }
-
-    @Test fun switchingPlaybackRoutesWhileRunningUpdatesAudioMode() {
+    @Test fun stoppingRestoresNormalModeAsInTheOriginal() {
+        manager.mode = AudioManager.MODE_RINGTONE
         SoftwareLoopback.start(context)
-        assertEquals(AudioManager.MODE_NORMAL, audioManager.mode)
-        SoftwareLoopback.setVoipMode(context, true)
-        assertTrue(SoftwareLoopback.isRunning)
-        assertEquals(AudioManager.MODE_IN_COMMUNICATION, audioManager.mode)
-        SoftwareLoopback.setVoipMode(context, false)
-        assertTrue(SoftwareLoopback.isRunning)
-        assertEquals(AudioManager.MODE_NORMAL, audioManager.mode)
-    }
-
-    @Test fun stoppingMediaPlaybackDoesNotResetAnotherAudioMode() {
-        audioManager.mode = AudioManager.MODE_RINGTONE
-        SoftwareLoopback.start(context)
+        assertEquals(AudioManager.MODE_RINGTONE, manager.mode)
         SoftwareLoopback.stop()
-        assertEquals(AudioManager.MODE_RINGTONE, audioManager.mode)
-        SoftwareLoopback.setVoipMode(context, true)
-        SoftwareLoopback.start(context)
-        SoftwareLoopback.stop()
-        assertEquals(AudioManager.MODE_RINGTONE, audioManager.mode)
+        assertEquals(AudioManager.MODE_NORMAL, manager.mode)
     }
-
-    @Test fun selectedPlaybackModeSurvivesServiceRecreation() {
-        context.getSharedPreferences("micup_prefs", Context.MODE_PRIVATE).edit()
-            .putString("playback_tier", VirtualMicTier.MEDIA_PROJECTION.name).commit()
-        val service = VirtualMicService(context, ShizukuManager())
-        service.selectPlaybackTier(VirtualMicTier.MEDIA_PROJECTION)
-        service.selectPlaybackTier(VirtualMicTier.VOIP_STREAM)
-        assertEquals(VirtualMicTier.VOIP_STREAM, service.getActiveTier())
-        assertEquals(VirtualMicTier.VOIP_STREAM,
-            VirtualMicService(context, ShizukuManager()).getActiveTier())
-        service.selectPlaybackTier(VirtualMicTier.MEDIA_PROJECTION)
-        assertEquals(VirtualMicTier.MEDIA_PROJECTION,
-            VirtualMicService(context, ShizukuManager()).getActiveTier())
+    @Test fun staleVoipPreferenceCannotChangeOriginalRouting() {
+        context.getSharedPreferences("micup_prefs", Context.MODE_PRIVATE).edit().putString("playback_tier", "VOIP_STREAM").commit()
+        VirtualMicService(context, ShizukuManager())
+        SoftwareLoopback.start(context)
+        assertEquals(AudioAttributes.USAGE_MEDIA, track().audioAttributes.usage)
+        assertEquals(AudioManager.MODE_NORMAL, manager.mode)
     }
 }

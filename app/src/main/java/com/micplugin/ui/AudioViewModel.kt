@@ -89,15 +89,14 @@ class AudioViewModel @Inject constructor(
     fun setDeviceMediaVolume(value: Int) = deviceVolumeController.setMedia(value)
     fun setDeviceCallVolume(value: Int) = deviceVolumeController.setCall(value)
 
-    private val _monitoringEnabled = MutableStateFlow(false)
+    private val _monitoringEnabled = MutableStateFlow(true)
     val monitoringEnabled: kotlinx.coroutines.flow.StateFlow<Boolean> = _monitoringEnabled
-    val echoState = audioEngine.echo.state
-    val noiseReductionState = audioEngine.noiseReduction.state
     private val _noiseReductionEnabled = MutableStateFlow(true)
     val noiseReductionEnabled: StateFlow<Boolean> = _noiseReductionEnabled
     fun setNoiseReduction(enabled: Boolean) {
         _noiseReductionEnabled.value = enabled
-        audioEngine.setNoiseReduction(enabled)
+        _gateState.value = _gateState.value.copy(enabled = enabled)
+        audioEngine.setGateEnabled(enabled)
         context.getSharedPreferences("micup_prefs", Context.MODE_PRIVATE).edit()
             .putBoolean("noise_reduction_enabled", enabled).apply()
     }
@@ -163,9 +162,13 @@ class AudioViewModel @Inject constructor(
 
     init {
         val prefs = context.getSharedPreferences("micup_prefs", Context.MODE_PRIVATE)
+        com.micplugin.service.OriginalAudioDefaults.full(prefs)
         setMonitorVolume(prefs.getFloat("monitor_volume", 1f))
-        setMonitoring(prefs.getBoolean("monitoring_enabled", false))
+        setMonitoring(prefs.getBoolean("monitoring_enabled", true))
         setNoiseReduction(prefs.getBoolean("noise_reduction_enabled", true))
+        setGateThreshold(prefs.getFloat("gate_threshold_db", -50f))
+        setGateAttack(prefs.getFloat("gate_attack_ms", 5f))
+        setGateRelease(prefs.getFloat("gate_release_ms", 150f))
         setSpeakerBoost(prefs.getFloat("speaker_boost_db", 0f))
         setVoiceFilters(VoiceFilterState(prefs.getBoolean("high_pass_enabled", false),
             prefs.getFloat("high_pass_hz", 80f), prefs.getBoolean("low_pass_enabled", false),
@@ -199,20 +202,22 @@ class AudioViewModel @Inject constructor(
 
     // ── Gate ──────────────────────────────────────────────────────────────────
     fun setGateEnabled(on: Boolean) {
-        _gateState.value = _gateState.value.copy(enabled = on)
-        audioEngine.setGateEnabled(on)
+        setNoiseReduction(on)
     }
     fun setGateThreshold(db: Float) {
         _gateState.value = _gateState.value.copy(thresholdDb = db)
         audioEngine.setGateThreshold(db)
+        context.getSharedPreferences("micup_prefs", Context.MODE_PRIVATE).edit().putFloat("gate_threshold_db", db).apply()
     }
     fun setGateAttack(ms: Float) {
         _gateState.value = _gateState.value.copy(attackMs = ms)
         audioEngine.setGateAttack(ms)
+        context.getSharedPreferences("micup_prefs", Context.MODE_PRIVATE).edit().putFloat("gate_attack_ms", ms).apply()
     }
     fun setGateRelease(ms: Float) {
         _gateState.value = _gateState.value.copy(releaseMs = ms)
         audioEngine.setGateRelease(ms)
+        context.getSharedPreferences("micup_prefs", Context.MODE_PRIVATE).edit().putFloat("gate_release_ms", ms).apply()
     }
 
     // ── EQ ────────────────────────────────────────────────────────────────────
@@ -364,7 +369,12 @@ class AudioViewModel @Inject constructor(
 
     fun rescan() { viewModelScope.launch { pluginManager.scanAll() } }
 
-    fun selectPlaybackTier(tier: VirtualMicTier) = virtualMicService.selectPlaybackTier(tier)
+
+    fun selectPlaybackTier(tier: VirtualMicTier) {
+        if (tier.unavailableReason != null) com.micplugin.service.AudioProcessingService.stop(context)
+        virtualMicService.selectPlaybackTier(tier)
+        audioEngine.reportPause(tier.unavailableReason)
+    }
 
     fun connectShizuku(context: Context) {
         shizukuManager.init()

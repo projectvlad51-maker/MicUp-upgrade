@@ -46,11 +46,5 @@ class LiteDeviceCatalog(context: Context) {
 
     companion object {
         fun selected(key: String, devices: List<LiteDevice>): LiteDevice? = devices.firstOrNull { it.key == key }
-        fun automaticOutput(devices: List<LiteDevice>): LiteDevice? {
-            val order = listOf(AudioDeviceInfo.TYPE_WIRED_HEADSET, AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
-                AudioDeviceInfo.TYPE_USB_HEADSET, AudioDeviceInfo.TYPE_USB_DEVICE, AudioDeviceInfo.TYPE_BLE_HEADSET,
-                AudioDeviceInfo.TYPE_BLUETOOTH_SCO, AudioDeviceInfo.TYPE_BLUETOOTH_A2DP, AudioDeviceInfo.TYPE_BUILTIN_SPEAKER, AudioDeviceInfo.TYPE_BUILTIN_EARPIECE)
-            return order.firstNotNullOfOrNull { type -> devices.firstOrNull { it.type == type } } ?: devices.firstOrNull()
-        }
     }
 }

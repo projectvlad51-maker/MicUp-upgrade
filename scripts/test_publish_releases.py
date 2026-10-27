@@ -5,10 +5,10 @@ from unittest.mock import patch
 import publish_releases as publisher
 
 class PublicationTests(unittest.TestCase):
-    def test_catalog_validates_all_twelve_versions_and_eleven_apks(self):
+    def test_catalog_validates_all_fourteen_versions_and_thirteen_apks(self):
         catalog = list(publisher.releases())
-        self.assertEqual(12, len(catalog))
-        self.assertEqual(11, sum('artifact_ref' in r for r in catalog))
+        self.assertEqual(14, len(catalog))
+        self.assertEqual(13, sum('artifact_ref' in r for r in catalog))
 
     @patch('publish_releases.subprocess.run')
     def test_forbidden_is_not_treated_as_missing_release(self, run):

@@ -107,8 +107,28 @@ class AudioProcessingService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
+        val selected = VirtualMicTier.saved(getSharedPreferences("micup_prefs", Context.MODE_PRIVATE).getString("playback_tier", null))
+        selected.unavailableReason?.let {
+            audioEngine.reportPause(it)
+            stopSelf()
+            return START_NOT_STICKY
+        }
         // Wire processed audio from C++ → SoftwareLoopback monitor
         audioEngine.setMonitorCallback { buf: FloatArray, size: Int -> SoftwareLoopback.writeProcessed(buf, size) }
+        if (!audioEngine.status.value.isRunning) {
+            val prefs = getSharedPreferences("micup_prefs", Context.MODE_PRIVATE)
+            OriginalAudioDefaults.full(prefs)
+            SoftwareLoopback.setMonitorVolume(prefs.getFloat("monitor_volume", 1f))
+            SoftwareLoopback.setSpeakerBoost(prefs.getFloat("speaker_boost_db", 0f))
+            audioEngine.setMicrophoneGain(prefs.getFloat("microphone_gain_db", 0f))
+            audioEngine.setVoiceFilters(prefs.getBoolean("high_pass_enabled", false), prefs.getFloat("high_pass_hz", 80f),
+                prefs.getBoolean("low_pass_enabled", false), prefs.getFloat("low_pass_hz", 12000f))
+            audioEngine.setGateEnabled(prefs.getBoolean("noise_reduction_enabled", true))
+            audioEngine.setGateThreshold(prefs.getFloat("gate_threshold_db", -50f))
+            audioEngine.setGateAttack(prefs.getFloat("gate_attack_ms", 5f))
+            audioEngine.setGateRelease(prefs.getFloat("gate_release_ms", 150f))
+            SoftwareLoopback.setOutputDevice(this, prefs.getInt("output_device_id", -1))
+        }
         val started = audioEngine.status.value.isRunning || audioEngine.start()
         if (!started) {
             // Do not leave a fake active notification or spawn update loops after a failed start.
@@ -119,7 +139,7 @@ class AudioProcessingService : Service() {
         if (!SoftwareLoopback.isRunning) {
             SoftwareLoopback.start(this)
         }
-        return START_NOT_STICKY
+        return START_STICKY
     }
 
     override fun onDestroy() {

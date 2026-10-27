@@ -2,6 +2,7 @@ package com.micplugin.lite
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -27,10 +28,9 @@ fun LiteScreen(
     onVolume: (Float) -> Unit, onInputDevice: (String) -> Unit, onOutputDevice: (String) -> Unit,
     onPreset: (String) -> Unit,
     onMonitoring: (Boolean) -> Unit = {},
-    echo: com.micplugin.service.EchoCancellationState = com.micplugin.service.EchoCancellationState(),
+    onMode: (com.micplugin.service.VirtualMicTier) -> Unit = {},
     onNoiseReduction: (Boolean) -> Unit = {},
     onNoiseThreshold: (Float) -> Unit = {},
-    noiseReduction: com.micplugin.service.NoiseReductionState = com.micplugin.service.NoiseReductionState(),
 ) {
     MaterialTheme(colorScheme = LiteColors) {
         Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
@@ -40,10 +40,10 @@ fun LiteScreen(
                     Text("MicUp Lite", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.headlineSmall)
                     Text("Естественный голос · сохранённые настройки", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
                 }
-                Text("VoIP", color = MaterialTheme.colorScheme.primary)
+                Text("4 режима", color = MaterialTheme.colorScheme.primary)
             }
-            Button(onClick = onToggle, modifier = Modifier.fillMaxWidth().height(52.dp)) {
-                Text(if (audio.running) "Выключить звук" else "Включить звук")
+            Button(onClick = onToggle, enabled = audio.running || settings.mode.unavailableReason == null, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+                Text(if (audio.running) "Выключить звук" else if (settings.mode.unavailableReason != null) "Режим недоступен" else "Включить звук")
             }
             Row(Modifier.fillMaxWidth().toggleable(settings.monitoring, role = Role.Switch, onValueChange = onMonitoring)
                 .padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -54,8 +54,7 @@ fun LiteScreen(
                 }
                 Switch(checked = settings.monitoring, onCheckedChange = null)
             }
-            if (audio.running && settings.monitoring) Text(
-                if (echo.active) "Системное эхоподавление включено" else "Эхоподавление недоступно: используйте наушники или выключите проверку",
+            if (settings.monitoring) Text("Выключение проверки отключает звук MicUp. Для прослушивания используйте наушники.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
             audio.error?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 12.sp) }
             if (audio.running) {
@@ -63,6 +62,16 @@ fun LiteScreen(
                 Text("Микрофон активен · настройки применяются сразу", color = MaterialTheme.colorScheme.primary, fontSize = 11.sp)
             }
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                LitePanel("Режим передачи") {
+                    com.micplugin.service.VirtualMicTier.values().forEach { mode ->
+                        Row(Modifier.fillMaxWidth().selectable(settings.mode == mode, role = Role.RadioButton,
+                            onClick = { onMode(mode) }).padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(selected = settings.mode == mode, onClick = null)
+                            Text(mode.displayName, fontSize = 12.sp)
+                        }
+                    }
+                    Text(settings.mode.unavailableReason ?: "Исходная схема MicUp без изменения аудиорежима телефона.", fontSize = 11.sp)
+                }
                 LitePanel("10 пресетов громкости") {
                     var open by remember { mutableStateOf(false) }
                     val preset = LitePresets.all.firstOrNull { it.id == settings.presetId }
@@ -87,7 +96,7 @@ fun LiteScreen(
                         Switch(checked = settings.noiseReduction, onCheckedChange = null)
                     }
                     if (audio.running && settings.noiseReduction) Text(
-                        if (noiseReduction.active) "Noise Gate и системное шумоподавление включены" else "Noise Gate включён: приглушает шум в паузах",
+                        "Noise Gate включён: приглушает шум в паузах",
                         color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
                     if (settings.noiseReduction) {
                         LiteSlider("Порог шума", settings.noiseThresholdDb, -70f..-20f, "дБ", "noise_threshold", onNoiseThreshold)
@@ -112,7 +121,7 @@ fun LiteScreen(
                     DevicePicker("Микрофон", settings.inputKey, devices.inputs, onInputDevice)
                     DevicePicker("Выход звука", settings.outputKey, devices.outputs, onOutputDevice)
                     audio.routeWarning?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 11.sp) }
-                    Text("Авто предпочитает подключённые наушники, затем динамик телефона. Недоступное устройство остаётся сохранённым.",
+                    Text("Авто использует исходный порядок: наушники, затем разговорный динамик. Недоступное устройство остаётся сохранённым.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
                 }
                 OutlinedButton(onClick = { onPreset("natural") }, modifier = Modifier.fillMaxWidth()) { Text("Сбросить только уровни") }

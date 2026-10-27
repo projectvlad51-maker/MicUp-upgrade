@@ -19,7 +19,7 @@ import org.robolectric.annotation.Config
 class MainActivityControlsTest {
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
 
-    @Test fun openingAppDoesNotStartAudioOrOpenSettingsButExplicitStartDoes() {
+    @Test fun openingWithoutMicrophonePermissionDefersStartAndDoesNotOpenStorageSettings() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val app = shadowOf(context as Application)
         compose.runOnIdle {

@@ -76,6 +76,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (savedInstanceState == null) requestAudioStart()
         // Handle file opened from file manager
         handleIncomingPlugin(intent)
         setContent {

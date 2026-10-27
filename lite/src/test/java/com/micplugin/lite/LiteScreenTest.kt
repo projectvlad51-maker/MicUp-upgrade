@@ -28,7 +28,7 @@ class LiteScreenTest {
             val settings by store.state.collectAsState()
             LiteScreen(settings, LiteRunState(), devices.value, SpeakerBoostState(), onToggle,
                 store::microphone, store::output, store::volume, store::input, store::outputDevice, store::preset,
-                onMonitoring = store::monitoring, onNoiseReduction = store::noiseReduction)
+                onMonitoring = store::monitoring, onNoiseReduction = store::noiseReduction, onMode = store::mode)
         }
     }
     private fun store() = LiteSettingsStore(ApplicationProvider.getApplicationContext<Context>())
@@ -67,7 +67,7 @@ class LiteScreenTest {
     @Test fun microphoneCheckCanBeMutedAndStaysMutedAfterChangingPreset() {
         val store = store()
         render(store)
-        compose.onNodeWithText("Проверка микрофона").assertIsOff().performClick().assertIsOn()
+        compose.onNodeWithText("Проверка микрофона").assertIsOn()
         compose.runOnIdle { assertTrue(store.state.value.monitoring) }
         compose.onNodeWithText("Проверка микрофона").performClick().assertIsOff()
         compose.runOnIdle { store.preset("speaker_loud") }
@@ -79,12 +79,22 @@ class LiteScreenTest {
         val store = store()
         render(store)
         compose.onNodeWithText("Шумоподавление").performScrollTo().assertIsOn().performClick().assertIsOff()
-        compose.onNodeWithText("Проверка микрофона").assertIsOff()
+        compose.onNodeWithText("Проверка микрофона").assertIsOn()
         compose.runOnIdle {
             assertFalse(store.state.value.noiseReduction)
-            assertFalse(store.state.value.monitoring)
+            assertTrue(store.state.value.monitoring)
             assertEquals(0f, store.state.value.microphoneDb)
         }
     }
 
+    @Test fun fourOriginalChoicesShowUnavailableBackendAndKeepSelection() {
+        val store = store()
+        render(store)
+        com.micplugin.service.VirtualMicTier.values().forEach { mode ->
+            compose.onNodeWithText(mode.displayName).performScrollTo().assertIsDisplayed()
+        }
+        compose.onNodeWithText(com.micplugin.service.VirtualMicTier.SHIZUKU_ADB.displayName).performScrollTo().performClick()
+        compose.onNodeWithText("Режим недоступен").assertIsNotEnabled()
+        compose.runOnIdle { assertEquals(com.micplugin.service.VirtualMicTier.SHIZUKU_ADB, store().state.value.mode) }
+    }
 }

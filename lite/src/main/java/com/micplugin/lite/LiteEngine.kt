@@ -6,8 +6,6 @@ import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import com.micplugin.audio.NativeAudioDriver
 import com.micplugin.audio.OboeEngine
-import com.micplugin.service.EchoCancellation
-import com.micplugin.service.NoiseReduction
 import com.micplugin.service.SoftwareLoopback
 import com.micplugin.service.SpeakerBoostState
 import kotlinx.coroutines.*
@@ -30,7 +28,6 @@ private class OriginalPlayback(private val context: Context) : LitePlayback {
     override val boost get() = SoftwareLoopback.speakerBoostState
     override val running get() = SoftwareLoopback.isRunning
     override fun configure(settings: LiteSettings, deviceId: Int) {
-        SoftwareLoopback.setVoipMode(context, true)
         SoftwareLoopback.setMonitorVolume(settings.volume)
         SoftwareLoopback.setMonitorEnabled(settings.monitoring)
         SoftwareLoopback.setSpeakerBoost(settings.outputDb)
@@ -49,12 +46,9 @@ class LiteEngine internal constructor(private val context: Context, private val 
     private val _state = MutableStateFlow(LiteRunState())
     val state: StateFlow<LiteRunState> = _state
     val outputBoostState get() = playback.boost
-    val echo = EchoCancellation()
-    val noiseReduction = NoiseReduction()
     private val scope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
     private var updates: Job? = null
     private var appliedInputId = 0
-    private var captureSession = -1
     @Volatile var onFailure: (() -> Unit)? = null
 
     fun permissionDenied() { _state.value = _state.value.copy(error = "Разрешите доступ к микрофону") }
@@ -69,10 +63,10 @@ class LiteEngine internal constructor(private val context: Context, private val 
         // Android decides whether concurrent recording is available on the actual device.
         return try {
             val s = settings.state.value
+            s.mode.unavailableReason?.let { error(it) }
             configure(s)
             native.setMonitorCallback(playback::write)
             check(native.start()) { "Не удалось запустить исходный аудиодвижок MicUp" }
-            attachEffects(s)
             playback.start(s.monitoring)
             check(playback.running) { "Не удалось запустить вывод звука" }
             _state.value = _state.value.copy(running = true, error = null)
@@ -90,12 +84,12 @@ class LiteEngine internal constructor(private val context: Context, private val 
         // Stop capture before deleting its callback or releasing playback/effects.
         native.stop()
         native.setMonitorCallback(null)
-        echo.detach(); noiseReduction.detach(); captureSession = -1
         playback.stop()
         _state.value = _state.value.copy(running = false, inputDb = -100f, outputDb = -100f)
     }
 
     private fun configure(s: LiteSettings) {
+        s.mode.unavailableReason?.let { error(it) }
         val catalog = devices.state.value
         val input = LiteDeviceCatalog.selected(s.inputKey, catalog.inputs)?.info?.id ?: 0
         if (input != appliedInputId) {
@@ -112,19 +106,8 @@ class LiteEngine internal constructor(private val context: Context, private val 
         native.setParam(0, 3, if (s.noiseReduction) 1f else 0f)
         native.setParam(0, 0, s.noiseThresholdDb)
         native.setParam(5, 0, s.microphoneDb)
-        noiseReduction.setEnabled(s.noiseReduction)
         val output = LiteDeviceCatalog.selected(s.outputKey, catalog.outputs)
-            ?: LiteDeviceCatalog.automaticOutput(catalog.outputs)
         playback.configure(s, output?.info?.id ?: -1)
-    }
-
-    private fun attachEffects(s: LiteSettings) {
-        val session = native.getInputSessionId()
-        if (session != captureSession) {
-            captureSession = session
-            echo.attach(session)
-            noiseReduction.attach(session, s.noiseReduction)
-        }
     }
 
     private fun observeSettings() {
@@ -140,8 +123,7 @@ class LiteEngine internal constructor(private val context: Context, private val 
                         configure(s); lastSettings = s; lastDevices = catalog
                     }
                     check(native.isRunning()) { "Аудиоустройство отключилось. Повторно включите звук." }
-                    attachEffects(s)
-                    val levels = native.getLevels()
+                            val levels = native.getLevels()
                     _state.value = _state.value.copy(inputDb = levels.getOrElse(0) { -100f },
                         outputDb = levels.getOrElse(1) { -100f })
                     delay(50)

@@ -60,9 +60,9 @@ class LiteSettingsTest {
         assertEquals(1f, store.state.value.volume)
         assertEquals(store.state.value, LiteSettingsStore(context).state.value)
     }
-    @Test fun monitoringIsOffByDefaultAndPresetsNeverOverrideSavedChoice() {
+    @Test fun originalMonitoringIsOnByDefaultAndPresetsNeverOverrideSavedChoice() {
         val store = LiteSettingsStore(context)
-        assertFalse(store.state.value.monitoring)
+        assertTrue(store.state.value.monitoring)
         store.monitoring(true)
         LitePresets.all.forEach { store.preset(it.id); assertTrue(store.state.value.monitoring) }
         assertTrue(LiteSettingsStore(context).state.value.monitoring)
@@ -88,5 +88,13 @@ class LiteSettingsTest {
         assertEquals(-50f, store.state.value.noiseThresholdDb, 0f)
         store.noiseThreshold(-100f)
         assertEquals(-70f, store.state.value.noiseThresholdDb, 0f)
+    }
+    @Test fun allFourModeChoicesPersistAndPresetsDoNotChangeTheSelectedMode() {
+        val store = LiteSettingsStore(context)
+        com.micplugin.service.VirtualMicTier.values().forEach { mode ->
+            store.mode(mode)
+            LitePresets.all.forEach { store.preset(it.id); assertEquals(mode, store.state.value.mode) }
+            assertEquals(mode, LiteSettingsStore(context).state.value.mode)
+        }
     }
 }

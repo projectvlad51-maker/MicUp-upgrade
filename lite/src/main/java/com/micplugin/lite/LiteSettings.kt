@@ -11,9 +11,10 @@ data class LiteSettings(
     val inputKey: String = "auto",
     val outputKey: String = "auto",
     val presetId: String? = "natural",
-    val monitoring: Boolean = false,
+    val monitoring: Boolean = true,
     val noiseReduction: Boolean = true,
     val noiseThresholdDb: Float = -50f,
+    val mode: com.micplugin.service.VirtualMicTier = com.micplugin.service.VirtualMicTier.saved(null),
 )
 
 data class LitePreset(val id: String, val name: String, val description: String,
@@ -37,6 +38,7 @@ object LitePresets {
 
 class LiteSettingsStore(context: Context) {
     private val prefs = context.getSharedPreferences("lite_audio_settings", Context.MODE_PRIVATE)
+    init { com.micplugin.service.OriginalAudioDefaults.lite(prefs) }
     private fun finite(value: Float, min: Float, max: Float, fallback: Float) =
         if (value.isFinite()) value.coerceIn(min, max) else fallback
     private val _state = MutableStateFlow(LiteSettings(
@@ -46,7 +48,8 @@ class LiteSettingsStore(context: Context) {
         prefs.getString("input", "auto") ?: "auto",
         prefs.getString("output", "auto") ?: "auto",
         prefs.getString("preset", "natural")?.takeIf { id -> LitePresets.all.any { it.id == id } },
-        monitoring = prefs.getBoolean("monitoring", false),
+        mode = com.micplugin.service.VirtualMicTier.saved(prefs.getString("audio_mode", null)),
+        monitoring = prefs.getBoolean("monitoring", true),
         noiseReduction = prefs.getBoolean("noise_reduction", true),
         noiseThresholdDb = finite(prefs.getFloat("noise_threshold_db", -50f), -70f, -20f, -50f),
     ))
@@ -57,8 +60,9 @@ class LiteSettingsStore(context: Context) {
         prefs.edit().putFloat("microphone_db", value.microphoneDb).putFloat("output_db", value.outputDb)
             .putFloat("volume", value.volume).putString("input", value.inputKey)
             .putString("output", value.outputKey).putString("preset", value.presetId ?: "")
-            .putBoolean("monitoring", value.monitoring).putBoolean("noise_reduction", value.noiseReduction).putFloat("noise_threshold_db", value.noiseThresholdDb).apply()
+            .putString("audio_mode", value.mode.name).putBoolean("monitoring", value.monitoring).putBoolean("noise_reduction", value.noiseReduction).putFloat("noise_threshold_db", value.noiseThresholdDb).apply()
     }
+    fun mode(value: com.micplugin.service.VirtualMicTier) = save(state.value.copy(mode = value))
     fun noiseReduction(enabled: Boolean) = save(state.value.copy(noiseReduction = enabled))
     fun noiseThreshold(db: Float) = save(state.value.copy(noiseThresholdDb = finite(db, -70f, -20f, -50f)))
     fun monitoring(enabled: Boolean) = save(state.value.copy(monitoring = enabled))

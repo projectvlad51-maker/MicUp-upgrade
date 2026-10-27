@@ -1,8 +1,6 @@
 package com.micplugin.audio
 
 import android.util.Log
-import com.micplugin.service.EchoCancellation
-import com.micplugin.service.NoiseReduction
 import com.micplugin.plugin.PluginChain
 import com.micplugin.plugin.PluginFormat
 import kotlinx.coroutines.*
@@ -38,26 +36,18 @@ class AudioEngine @Inject constructor(
 
     private val _notice = MutableStateFlow<String?>(null)
     val notice: StateFlow<String?> = _notice
-    fun reportPause(message: String) { _notice.value = message }
+    fun reportPause(message: String?) { _notice.value = message }
     fun inputSessionId() = oboe.getInputSessionId()
 
     private val _status = MutableStateFlow(EngineStatus())
     val status: StateFlow<EngineStatus> = _status
 
     private var meterJob: Job? = null
-    val echo = EchoCancellation()
-    val noiseReduction = NoiseReduction()
-    @Volatile private var noiseRequested = true
-    @Volatile private var masterBypassed = false
-    private var echoSession = -1
 
     fun start(): Boolean {
         _notice.value = null
         val ok = oboe.start()
         if (ok) {
-            echoSession = oboe.getInputSessionId()
-            echo.attach(echoSession)
-            noiseReduction.attach(echoSession, noiseRequested && !masterBypassed)
             _status.value = EngineStatus(
                 isRunning      = true,
                 sampleRate     = oboe.getSampleRate(),
@@ -73,9 +63,6 @@ class AudioEngine @Inject constructor(
 
     fun stop() {
         meterJob?.cancel()
-        echo.detach()
-        noiseReduction.detach()
-        echoSession = -1
         oboe.stop()
         _status.value = EngineStatus(isRunning = false)
         _levels.value = AudioLevels()
@@ -95,15 +82,7 @@ class AudioEngine @Inject constructor(
     }
 
     fun setMonitoring(enabled: Boolean) = oboe.setParam(98, 0, if (enabled) 1f else 0f)
-    fun setMasterBypass(bypass: Boolean) {
-        masterBypassed = bypass
-        noiseReduction.setEnabled(noiseRequested && !bypass)
-        oboe.setParam(99, 0, if (bypass) 1f else 0f)
-    }
-    fun setNoiseReduction(enabled: Boolean) {
-        noiseRequested = enabled
-        noiseReduction.setEnabled(enabled && !masterBypassed)
-    }
+    fun setMasterBypass(bypass: Boolean) = oboe.setParam(99, 0, if (bypass) 1f else 0f)
 
     // ── Built-in effect param setters (all RT-safe via atomic stores) ──────────
     fun setGateThreshold(db: Float)   = oboe.setParam(0, 0, db)
@@ -154,13 +133,7 @@ class AudioEngine @Inject constructor(
                 if (!oboe.isRunning()) {
                     _notice.value = "Аудиоустройство отключилось или занято другим приложением. Включите MicUp после звонка."
                     _status.value = EngineStatus(isRunning = false)
-                    echo.detach(); noiseReduction.detach()
                     return@launch
-                }
-                val session = oboe.getInputSessionId()
-                if (session != echoSession) {
-                    echoSession = session; echo.attach(session)
-                    noiseReduction.attach(session, noiseRequested && !masterBypassed)
                 }
                 val raw = oboe.getLevels()
                 _levels.value = AudioLevels(

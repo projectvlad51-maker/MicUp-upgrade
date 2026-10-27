@@ -123,13 +123,12 @@ void AudioEngine::stop() {
 
 bool AudioEngine::openStreams() {
     oboe::AudioStreamBuilder builder;
+    if (inputDeviceId_ != oboe::kUnspecified) builder.setDeviceId(inputDeviceId_);
 
     // ─ Input stream (microphone capture) ─────────────────────────────────────
     auto result = builder
-        .setDeviceId(inputDeviceId_)
-        ->setDirection(oboe::Direction::Input)
+        .setDirection(oboe::Direction::Input)
         ->setInputPreset(oboe::InputPreset::VoiceCommunication)
-        ->setSessionId(oboe::SessionId::Allocate)
         ->setPerformanceMode(oboe::PerformanceMode::LowLatency)
         ->setSharingMode(oboe::SharingMode::Exclusive)
         ->setFormat(oboe::AudioFormat::Float)
@@ -148,8 +147,8 @@ bool AudioEngine::openStreams() {
     LOGI("Input stream opened: %dHz, %d frames/burst", sampleRate_, framesPerBurst_);
 
     // ─ Output stream (playback → VOICE_COMMUNICATION) ────────────────────────
-    builder.setDeviceId(oboe::kUnspecified)
-           ->setDirection(oboe::Direction::Output)
+    if (inputDeviceId_ != oboe::kUnspecified) builder.setDeviceId(oboe::kUnspecified);
+    builder.setDirection(oboe::Direction::Output)
            ->setPerformanceMode(oboe::PerformanceMode::LowLatency)
            ->setSharingMode(oboe::SharingMode::Exclusive)
            ->setFormat(oboe::AudioFormat::Float)
@@ -260,9 +259,11 @@ oboe::DataCallbackResult AudioEngine::onAudioReady(
 }
 
 void AudioEngine::onErrorAfterClose(oboe::AudioStream* stream, oboe::Result error) {
-    LOGE("Audio stream error: %s — releasing capture", oboe::convertToText(error));
-    running_.store(false, std::memory_order_release);
-    closeStreams();
+    LOGE("Audio stream error: %s — restarting", oboe::convertToText(error));
+    if (running_.load()) {
+        closeStreams();
+        if (!openStreams()) running_.store(false, std::memory_order_release);
+    }
 }
 
 void AudioEngine::measureLevel(const float* buf, int32_t frames, std::atomic<float>& out) {

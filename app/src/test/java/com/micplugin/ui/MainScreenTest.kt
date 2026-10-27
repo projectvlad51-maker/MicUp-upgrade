@@ -122,15 +122,24 @@ class MainScreenTest {
         compose.runOnIdle { assertEquals(false, vm.masterBypass.value); assertEquals(true, vm.monitoringEnabled.value) }
     }
 
-    @Test fun mediaAndVoipButtonsChooseMatchingPlaybackRoute() {
+    @Test fun allFourModesRemainVisibleAndLocalSelectionKeepsOriginalRouting() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         lateinit var vm: AudioViewModel
         compose.runOnIdle { vm = createViewModel(context, ShizukuManager()) }
         compose.setContent { MicPluginTheme { MainScreen(rememberNavController(), vm) } }
-        compose.onNodeWithText("Связь / VoIP").performScrollTo().performClick().assertIsSelected()
-        compose.runOnIdle { assertEquals(VirtualMicTier.VOIP_STREAM, vm.virtualMicTier.value) }
-        compose.onNodeWithText("Медиа / динамики").performScrollTo().performClick().assertIsSelected()
-        compose.runOnIdle { assertEquals(VirtualMicTier.MEDIA_PROJECTION, vm.virtualMicTier.value) }
+        VirtualMicTier.values().forEach { mode ->
+            compose.onAllNodesWithText(mode.displayName).onLast().performScrollTo().assertIsDisplayed()
+        }
+        compose.onAllNodesWithText(VirtualMicTier.VOIP_STREAM.displayName).onLast().performScrollTo().performClick()
+        compose.runOnIdle {
+            assertEquals(VirtualMicTier.VOIP_STREAM, vm.virtualMicTier.value)
+            assertEquals(android.media.AudioManager.MODE_NORMAL, context.getSystemService(android.media.AudioManager::class.java).mode)
+        }
+        compose.onAllNodesWithText(VirtualMicTier.ROOT_MAGISK.displayName).onLast().performScrollTo().performClick()
+        compose.runOnIdle {
+            assertEquals(VirtualMicTier.ROOT_MAGISK, vm.virtualMicTier.value)
+            assertEquals(false, vm.engineStatus.value.isRunning)
+        }
     }
 
     @Test fun resetSpeakerBoostDoesNotResetMicrophoneGain() {

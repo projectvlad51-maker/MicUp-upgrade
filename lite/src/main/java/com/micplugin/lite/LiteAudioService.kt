@@ -34,7 +34,7 @@ class LiteAudioService : Service() {
         if (!app.engine.start()) { stopSelf(); return START_NOT_STICKY }
         if (wakeLock == null) wakeLock = getSystemService(PowerManager::class.java)
             .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MicUpLite::Audio").apply { acquire() }
-        return START_NOT_STICKY // settings survive; recording always starts with an explicit user action
+        return START_STICKY // preserve an active session across service recreation, as in the original
     }
     override fun onDestroy() {
         app.engine.onFailure = null

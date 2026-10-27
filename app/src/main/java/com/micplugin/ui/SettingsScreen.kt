@@ -90,7 +90,7 @@ fun SettingsScreen(navController: NavController, vm: AudioViewModel = hiltViewMo
                 ) {
                     Column(Modifier.padding(12.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("ACTIVE TIER", fontSize = 8.sp, color = StudioColors.TextMuted, letterSpacing = 1.sp)
+                            Text("ВЫБРАННЫЙ РЕЖИМ", fontSize = 8.sp, color = StudioColors.TextMuted, letterSpacing = 1.sp)
                             Spacer(Modifier.width(8.dp))
                             Surface(
                                 shape  = RoundedCornerShape(4.dp),
@@ -106,15 +106,12 @@ fun SettingsScreen(navController: NavController, vm: AudioViewModel = hiltViewMo
                     }
                 }
 
-                listOf(VirtualMicTier.MEDIA_PROJECTION, VirtualMicTier.VOIP_STREAM).forEach { t ->
-                    TierRow(
-                        tier     = t,
-                        isActive = t == tier,
-                        onSelect = if (t == VirtualMicTier.VOIP_STREAM || t == VirtualMicTier.MEDIA_PROJECTION)
-                            ({ vm.selectPlaybackTier(t) }) else null,
-                        isLocked = false
-                    )
+                VirtualMicTier.values().forEach { mode ->
+                    TierRow(mode, mode == tier, isLocked = false, onSelect = { vm.selectPlaybackTier(mode) })
                 }
+                tier.unavailableReason?.let { Text(it, fontSize = 11.sp, color = StudioColors.TextMuted) }
+                Text("Используется конфигурация исходной MicUp. Регуляторы звучания не меняют аудиорежим телефона.",
+                    fontSize = 11.sp, color = StudioColors.TextMuted)
                 SettingsActionRow("Shizuku — подключение", Icons.Default.Settings) { vm.connectShizuku(context) }
 
             }
