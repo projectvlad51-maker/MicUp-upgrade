@@ -22,7 +22,7 @@ def api(path, method='GET', data=None, missing_ok=False):
     if response.returncode:
         if missing_ok and 'HTTP 404' in response.stderr:
             return None
-        raise RuntimeError('GitHub API request failed: '+response.stderr.strip())
+        raise RuntimeError('GitHub API '+method+' '+path+' failed: '+response.stderr.strip())
     return json.loads(response.stdout) if response.stdout.strip() else {}
 
 def releases():
@@ -71,7 +71,8 @@ def main():
             if existing:
                 api('repos/'+REPO+'/releases/'+str(existing['id']),'PATCH',payload)
             else:
-                payload.update(tag_name=r['tag'],target_commitish=commit,draft=False,prerelease=False)
+                # Tags already exist on GitHub. Do not request creation at an older workflow commit.
+                payload.update(tag_name=r['tag'],draft=False,prerelease=False)
                 api('repos/'+REPO+'/releases','POST',payload)
             if 'artifact_ref' in r:
                 asset = Path(temp)/r['artifact_name']
