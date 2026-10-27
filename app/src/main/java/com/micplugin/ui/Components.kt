@@ -312,25 +312,29 @@ fun KnobWidget(
     size: Dp = 48.dp,
     unit: String = "",
 ) {
-    val startAngle = 225f
+    val startAngle = 135f
     val sweepAngle = 270f
     val frac = (value - valueRange.start) / (valueRange.endInclusive - valueRange.start)
-    var lastY by remember { mutableFloatStateOf(0f) }
+    val currentValue by rememberUpdatedState(value)
+    val currentOnValueChange by rememberUpdatedState(onValueChange)
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Canvas(
             modifier = Modifier
                 .size(size)
-                .pointerInput(Unit) {
+                .pointerInput(valueRange) {
+                    // Keep one accumulator per gesture: the parent may recompose
+                    // asynchronously, and pointerInput must not capture its initial value.
+                    var dragValue = currentValue
+                    val dragDistance = 200.dp.toPx()
                     detectVerticalDragGestures(
-                        onDragStart = { offset -> lastY = offset.y },
-                        onDragEnd   = {},
-                        onVerticalDrag = { _, dy ->
-                            val delta = -dy / 200f
+                        onDragStart = { dragValue = currentValue },
+                        onVerticalDrag = { change, dy ->
+                            change.consume()
                             val range = valueRange.endInclusive - valueRange.start
-                            val newVal = (value + delta * range)
+                            dragValue = (dragValue - dy / dragDistance * range)
                                 .coerceIn(valueRange.start, valueRange.endInclusive)
-                            onValueChange(newVal)
+                            currentOnValueChange(dragValue)
                         },
                     )
                 },
