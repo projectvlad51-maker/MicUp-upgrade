@@ -1,11 +1,11 @@
 {
-  "source": "cccee076bd47ebe34e08c7fee4a24315086dc0d6",
+  "source": "96696d1ab5e2b18ac96fdfdc2fdbcd33a5c5c702",
   "ref": "refs/heads/main",
-  "result": "failure",
+  "result": "success",
   "visibility": "public",
-  "time_utc": "2026-10-27T05:15:16.602465+00:00",
-  "error": "RuntimeError: GitHub API PATCH repos/projectvlad51-maker/12/releases/425055323 failed: gh: HTTP 307",
-  "visibility_error": "GitHub API PATCH repos/projectvlad51-maker/12 failed: gh: Resource not accessible by integration (HTTP 403)",
+  "time_utc": "2026-10-27T05:19:14.945375+00:00",
+  "error": null,
+  "visibility_error": null,
   "confirmed_releases": [
     {
       "tag": "upstream-archive-v1.0.6",
