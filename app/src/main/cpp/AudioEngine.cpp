@@ -227,6 +227,10 @@ oboe::DataCallbackResult AudioEngine::onAudioReady(
 
     // Process effects chain
     if (!params_.masterBypass.load(std::memory_order_relaxed)) {
+        voiceFilters_.process(out, numFrames,
+            params_.highPassEnabled.load(std::memory_order_relaxed), params_.highPassHz.load(std::memory_order_relaxed),
+            params_.lowPassEnabled.load(std::memory_order_relaxed), params_.lowPassHz.load(std::memory_order_relaxed),
+            static_cast<float>(sampleRate_));
         processEffectsChain(out, numFrames);
     }
 
@@ -492,6 +496,12 @@ Java_com_micplugin_audio_OboeEngine_nativeSetParam(
         case 5: // Microphone boost
             if (paramId == 0) p.microphoneGainDb.store(
                 std::clamp(value, 0.0f, micplugin::MicrophoneGain::kMaxBoostDb), std::memory_order_relaxed);
+            break;
+        case 6: // Voice low/high cuts
+            if (paramId == 0) p.highPassEnabled.store(value > 0.5f, std::memory_order_relaxed);
+            else if (paramId == 1) p.highPassHz.store(std::clamp(value, 20.0f, 300.0f), std::memory_order_relaxed);
+            else if (paramId == 2) p.lowPassEnabled.store(value > 0.5f, std::memory_order_relaxed);
+            else if (paramId == 3) p.lowPassHz.store(std::clamp(value, 3000.0f, 20000.0f), std::memory_order_relaxed);
             break;
         case 99: // Master bypass
             p.masterBypass.store(value > 0.5f, std::memory_order_relaxed);

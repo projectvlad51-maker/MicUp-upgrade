@@ -85,22 +85,23 @@ fun SettingsScreen(navController: NavController, vm: AudioViewModel = hiltViewMo
                         }
                     }
                 }
+                TextButton(onClick = { vm.refreshShizuku() }) { Text("Проверить подключение") }
                 if (shizukuState == ShizukuState.UNAVAILABLE) {
                     Text(
-                        "Install Shizuku from Play Store, start it via ADB or wireless debugging, then reopen this app.",
+                        "Откройте Shizuku, запустите сервис через беспроводную отладку или ADB и вернитесь сюда.",
                         fontSize = 10.sp, color = StudioColors.TextMuted, lineHeight = 14.sp,
                     )
                 }
                 if (shizukuState == ShizukuState.READY) {
                     Text(
-                        "Shizuku active — ALSA loopback and appops routing available.",
+                        "Доступ Shizuku разрешён. Это подключение не создаёт виртуальный микрофон для других приложений.",
                         fontSize = 10.sp, color = StudioColors.TextMuted, lineHeight = 14.sp,
                     )
                 }
             }
 
             // ── Virtual Mic ───────────────────────────────────────────────────
-            SettingsSection("Virtual Microphone") {
+            SettingsSection("Режим воспроизведения") {
                 Surface(
                     shape  = RoundedCornerShape(7.dp),
                     color  = Color(tier.badgeColorHex).copy(alpha = 0.05f),
@@ -124,17 +125,13 @@ fun SettingsScreen(navController: NavController, vm: AudioViewModel = hiltViewMo
                     }
                 }
 
-                VirtualMicTier.values().forEach { t ->
+                listOf(VirtualMicTier.MEDIA_PROJECTION, VirtualMicTier.VOIP_STREAM).forEach { t ->
                     TierRow(
                         tier     = t,
                         isActive = t == tier,
                         onSelect = if (t == VirtualMicTier.VOIP_STREAM || t == VirtualMicTier.MEDIA_PROJECTION)
                             ({ vm.selectPlaybackTier(t) }) else null,
-                        isLocked = when (t) {
-                            VirtualMicTier.SHIZUKU_ADB -> shizukuState != ShizukuState.READY
-                            VirtualMicTier.ROOT_MAGISK -> !com.micplugin.service.VirtualMicService.isRooted()
-                            else -> false
-                        }
+                        isLocked = false
                     )
                 }
             }

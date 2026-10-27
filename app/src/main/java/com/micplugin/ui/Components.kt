@@ -190,6 +190,7 @@ fun ParamSlider(
     unit: String = "",
     modifier: Modifier = Modifier,
     steps: Int = 0,
+    enabled: Boolean = true,
 ) {
     Column(modifier = modifier) {
         Row(
@@ -197,7 +198,7 @@ fun ParamSlider(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment     = Alignment.CenterVertically,
         ) {
-            Text(label, style = MaterialTheme.typography.labelSmall, color = StudioColors.TextMuted, fontSize = 10.sp)
+            Text(label, style = MaterialTheme.typography.labelSmall, color = StudioColors.TextMuted, fontSize = 12.sp)
             Text(
                 text  = "%.1f%s".format(value, unit),
                 style = MaterialTheme.typography.labelSmall,
@@ -207,6 +208,7 @@ fun ParamSlider(
         }
         Slider(
             value         = value,
+            enabled       = enabled,
             onValueChange = onValueChange,
             valueRange    = valueRange,
             steps         = steps,
@@ -215,7 +217,7 @@ fun ParamSlider(
                 activeTrackColor = StudioColors.Accent,
                 inactiveTrackColor = StudioColors.Border,
             ),
-            modifier = Modifier.height(32.dp),
+            modifier = Modifier.height(48.dp),
         )
     }
 }
@@ -229,7 +231,8 @@ fun EqBandFader(
     modifier: Modifier = Modifier,
 ) {
     val range   = 15f
-    var dragOffset by remember { mutableFloatStateOf(0f) }
+    val currentGain by rememberUpdatedState(gainDb)
+    val currentOnGainChange by rememberUpdatedState(onGainChange)
     var baseGain   by remember { mutableFloatStateOf(gainDb) }
 
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
@@ -240,19 +243,19 @@ fun EqBandFader(
         )
         Box(
             Modifier
-                .width(24.dp)
-                .height(80.dp)
+                .width(40.dp)
+                .height(120.dp)
                 .clip(RoundedCornerShape(3.dp))
                 .background(StudioColors.Card)
                 .border(1.dp, StudioColors.Border, RoundedCornerShape(3.dp))
                 .pointerInput(Unit) {
                     detectVerticalDragGestures(
-                        onDragStart = { baseGain = gainDb },
+                        onDragStart = { baseGain = currentGain },
                         onDragEnd   = {},
                         onVerticalDrag = { _, dy ->
                             val newGain = (baseGain - dy / 3f).coerceIn(-range, range)
                             baseGain = newGain
-                            onGainChange(newGain)
+                            currentOnGainChange(newGain)
                         },
                     )
                 }
@@ -309,7 +312,7 @@ fun KnobWidget(
     value: Float,
     onValueChange: (Float) -> Unit,
     valueRange: ClosedFloatingPointRange<Float>,
-    size: Dp = 48.dp,
+    size: Dp = 64.dp,
     unit: String = "",
 ) {
     val startAngle = 135f
@@ -374,10 +377,10 @@ fun KnobWidget(
         }
         Text(
             text = "%.1f%s".format(value, unit),
-            fontSize = 8.sp,
+            fontSize = 11.sp,
             color = StudioColors.Accent,
         )
-        Text(label, fontSize = 7.sp, color = StudioColors.TextMuted)
+        Text(label, fontSize = 10.sp, color = StudioColors.TextMuted)
     }
 }
 
@@ -414,6 +417,27 @@ fun MeteringStrip(
                 VuMeterBar(outputDb, if (it == 0) "OUT L" else "OUT R",
                     modifier = Modifier.weight(1f).fillMaxHeight())
             }
+        }
+    }
+}
+
+@Composable
+internal fun DashboardTabs(selected: Int, onSelect: (Int) -> Unit) {
+    TabRow(selectedTabIndex = selected, containerColor = StudioColors.Background,
+        contentColor = StudioColors.Accent) {
+        listOf("Громкость", "Эффекты", "Плагины").forEachIndexed { index, title ->
+            Tab(selected = selected == index, onClick = { onSelect(index) }, text = { Text(title) })
+        }
+    }
+}
+
+@Composable
+internal fun ControlPanel(title: String, content: @Composable ColumnScope.() -> Unit) {
+    Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp),
+        color = StudioColors.Card, border = BorderStroke(1.dp, StudioColors.Border)) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(title, style = MaterialTheme.typography.titleSmall, color = StudioColors.TextPrimary)
+            content()
         }
     }
 }

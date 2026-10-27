@@ -11,6 +11,7 @@ import com.micplugin.preset.EffectState
 import com.micplugin.preset.Preset
 import com.micplugin.preset.PresetManager
 import com.micplugin.plugin.PluginPathPrefs
+import com.micplugin.service.DeviceVolumeController
 import com.micplugin.service.ShizukuManager
 import com.micplugin.service.SoftwareLoopback
 import com.micplugin.service.ShizukuState
@@ -21,6 +22,11 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.util.UUID
 import javax.inject.Inject
+
+data class VoiceFilterState(
+    val highPassEnabled: Boolean = false, val highPassHz: Float = 80f,
+    val lowPassEnabled: Boolean = false, val lowPassHz: Float = 12000f,
+)
 
 data class GateState(
     val enabled: Boolean = true,
@@ -64,6 +70,7 @@ class AudioViewModel @Inject constructor(
     private val virtualMicService: VirtualMicService,
     private val shizukuManager: ShizukuManager,
     private val pluginPathPrefs: PluginPathPrefs,
+    private val deviceVolumeController: DeviceVolumeController,
 ) : ViewModel() {
 
     val levels:      StateFlow<AudioLevels>    = audioEngine.levels
@@ -73,6 +80,35 @@ class AudioViewModel @Inject constructor(
     val presets:     StateFlow<List<Preset>>   = presetManager.presets
     val virtualMicTier: StateFlow<VirtualMicTier> = virtualMicService.activeTier
     val shizukuState: StateFlow<ShizukuState> = shizukuManager.state
+
+    val deviceVolumes = deviceVolumeController.volumes
+    val volumeError = deviceVolumeController.error
+    fun refreshDeviceVolumes() = deviceVolumeController.refresh()
+    fun setDeviceMediaVolume(value: Int) = deviceVolumeController.setMedia(value)
+    fun setDeviceCallVolume(value: Int) = deviceVolumeController.setCall(value)
+
+    private val _monitorVolume = MutableStateFlow(1f)
+    val monitorVolume: StateFlow<Float> = _monitorVolume
+    fun setMonitorVolume(value: Float) {
+        val volume = if (value.isFinite()) value.coerceIn(0f, 1f) else 1f
+        _monitorVolume.value = volume
+        SoftwareLoopback.setMonitorVolume(volume)
+        context.getSharedPreferences("micup_prefs", Context.MODE_PRIVATE).edit()
+            .putFloat("monitor_volume", volume).apply()
+    }
+
+    private val _voiceFilters = MutableStateFlow(VoiceFilterState())
+    val voiceFilters: StateFlow<VoiceFilterState> = _voiceFilters
+    fun setVoiceFilters(state: VoiceFilterState) {
+        val clean = state.copy(
+            highPassHz = if (state.highPassHz.isFinite()) state.highPassHz.coerceIn(20f, 300f) else 80f,
+            lowPassHz = if (state.lowPassHz.isFinite()) state.lowPassHz.coerceIn(3000f, 20000f) else 12000f)
+        _voiceFilters.value = clean
+        audioEngine.setVoiceFilters(clean.highPassEnabled, clean.highPassHz, clean.lowPassEnabled, clean.lowPassHz)
+        context.getSharedPreferences("micup_prefs", Context.MODE_PRIVATE).edit()
+            .putBoolean("high_pass_enabled", clean.highPassEnabled).putFloat("high_pass_hz", clean.highPassHz)
+            .putBoolean("low_pass_enabled", clean.lowPassEnabled).putFloat("low_pass_hz", clean.lowPassHz).apply()
+    }
 
     private val _microphoneGainDb = MutableStateFlow(0f)
     val microphoneGainDb: StateFlow<Float> = _microphoneGainDb
@@ -103,6 +139,11 @@ class AudioViewModel @Inject constructor(
     val selectedPreset: StateFlow<Preset?> = _selectedPreset
 
     init {
+        val prefs = context.getSharedPreferences("micup_prefs", Context.MODE_PRIVATE)
+        setMonitorVolume(prefs.getFloat("monitor_volume", 1f))
+        setVoiceFilters(VoiceFilterState(prefs.getBoolean("high_pass_enabled", false),
+            prefs.getFloat("high_pass_hz", 80f), prefs.getBoolean("low_pass_enabled", false),
+            prefs.getFloat("low_pass_hz", 12000f)))
         setMicrophoneGain(context.getSharedPreferences("micup_prefs", Context.MODE_PRIVATE)
             .getFloat("microphone_gain_db", 0f))
         viewModelScope.launch { presetManager.loadAll() }
@@ -239,6 +280,7 @@ class AudioViewModel @Inject constructor(
         _selectedPreset.value = preset
         val e = preset.effects
         setMicrophoneGain(e.microphoneGainDb)
+        setVoiceFilters(VoiceFilterState(e.highPassEnabled, e.highPassHz, e.lowPassEnabled, e.lowPassHz))
         setGateEnabled(e.gateEnabled);     setGateThreshold(e.gateThreshold)
         setGateAttack(e.gateAttack);       setGateRelease(e.gateRelease)
         setEqEnabled(e.eqEnabled);         e.eqBands.forEachIndexed { i, db -> setEqBand(i, db) }
@@ -260,6 +302,10 @@ class AudioViewModel @Inject constructor(
             name    = name,
             effects = EffectState(
                 microphoneGainDb = _microphoneGainDb.value,
+                highPassEnabled = _voiceFilters.value.highPassEnabled,
+                highPassHz = _voiceFilters.value.highPassHz,
+                lowPassEnabled = _voiceFilters.value.lowPassEnabled,
+                lowPassHz = _voiceFilters.value.lowPassHz,
                 gateEnabled   = _gateState.value.enabled,
                 gateThreshold = _gateState.value.thresholdDb,
                 gateAttack    = _gateState.value.attackMs,
@@ -286,6 +332,8 @@ class AudioViewModel @Inject constructor(
     fun rescan() { viewModelScope.launch { pluginManager.scanAll() } }
 
     fun selectPlaybackTier(tier: VirtualMicTier) = virtualMicService.selectPlaybackTier(tier)
+
+    fun refreshShizuku() = shizukuManager.init()
 
     fun requestShizukuPermission() { shizukuManager.requestPermission() }
 

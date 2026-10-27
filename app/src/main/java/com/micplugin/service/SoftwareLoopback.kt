@@ -23,6 +23,8 @@ object SoftwareLoopback {
     @Volatile private var running = false
     private var focusRequest: AudioFocusRequest? = null
     private var voipMode = false
+    private var monitorVolume = 1f
+    private var focusMultiplier = 1f
     private var previousAudioMode: Int? = null
 
     fun setVoipMode(context: Context, enabled: Boolean) {
@@ -31,6 +33,15 @@ object SoftwareLoopback {
         if (restart) stop()
         voipMode = enabled
         if (restart) start(context)
+    }
+
+    fun setMonitorVolume(volume: Float) {
+        monitorVolume = if (volume.isFinite()) volume.coerceIn(0f, 1f) else 1f
+        applyVolume()
+    }
+
+    private fun applyVolume() {
+        monitorTrack?.setVolume(if (monitorEnabled) monitorVolume * focusMultiplier else 0f)
     }
 
     private fun playbackAttributes(): AudioAttributes = AudioAttributes.Builder()
@@ -79,7 +90,8 @@ object SoftwareLoopback {
             restoreAudioMode()
             return
         }
-        monitorTrack!!.setVolume(if (monitorEnabled) 1f else 0f)
+        focusMultiplier = 1f
+        applyVolume()
 
         running = true
         queue.clear()
@@ -147,7 +159,7 @@ object SoftwareLoopback {
 
     fun setMonitorEnabled(enabled: Boolean) {
         monitorEnabled = enabled
-        monitorTrack?.setVolume(if (enabled) 1f else 0f)
+        applyVolume()
         if (!enabled) queue.clear()
         Log.i(TAG, "Monitor ${if (enabled) "ON" else "OFF"}")
     }
@@ -208,9 +220,9 @@ object SoftwareLoopback {
         val listener = AudioManager.OnAudioFocusChangeListener { change ->
             when (change) {
                 AudioManager.AUDIOFOCUS_LOSS,
-                AudioManager.AUDIOFOCUS_LOSS_TRANSIENT          -> monitorTrack?.setVolume(0f)
-                AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> monitorTrack?.setVolume(0.2f)
-                AudioManager.AUDIOFOCUS_GAIN                    -> monitorTrack?.setVolume(if (monitorEnabled) 1f else 0f)
+                AudioManager.AUDIOFOCUS_LOSS_TRANSIENT          -> { focusMultiplier = 0f; applyVolume() }
+                AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> { focusMultiplier = 0.2f; applyVolume() }
+                AudioManager.AUDIOFOCUS_GAIN                    -> { focusMultiplier = 1f; applyVolume() }
             }
         }
         if (Build.VERSION.SDK_INT >= 26) {

@@ -54,16 +54,13 @@ class MainActivity : ComponentActivity() {
         requestBatteryOptimizationExemption()
     }
 
-    // Shizuku permission result listener
-    private val shizukuPermissionListener = Shizuku.OnRequestPermissionResultListener { _, result ->
-        if (result == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-            virtualMicService.onShizukuReady()
-        }
+    override fun onResume() {
+        super.onResume()
+        shizukuManager.refreshState()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Shizuku.addRequestPermissionResultListener(shizukuPermissionListener)
         permissionLauncher.launch(permissionsToRequest)
         // Handle file opened from file manager
         handleIncomingPlugin(intent)
@@ -146,7 +143,6 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
-        Shizuku.removeRequestPermissionResultListener(shizukuPermissionListener)
         super.onDestroy()
     }
 

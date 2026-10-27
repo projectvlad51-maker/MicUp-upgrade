@@ -24,13 +24,15 @@ No PC required. No monthly subscription.
 
 ## Features
 
+-  **Audio dashboard** — fixed tabs for volume, effects, and plugins; separate MicUp, media, and call volume controls
+-  **Voice filters** — high-pass cut (20–300 Hz) and low-pass cut (3–20 kHz), with preset support
 -  **Mic Boost** — independent 0 to +36 dB boost, smooth level changes, reset button, and preset support
 -  **Built-in DSP chain** — Noise Gate, 10-band EQ, Compressor, Reverb, Pitch Shifter
 -  **Plugin support** — Load LV2, CLAP, and VST3 native plugins (`.so`, `.clap`, `.lv2`)
 -  **Open plugin files** — Tap a plugin file in your file manager to import it directly
 -  **Monitor toggle** — Hear your processed audio through headphones, or silence local playback
--  **Shizuku support** — ADB-level ALSA loopback routing without full root
--  **Selectable playback modes** — Local Monitor or VoIP Playback; experimental Shizuku/root routing does not guarantee a system virtual microphone
+-  **Shizuku connection** — permission request, live status, and reconnect detection when the service starts later
+-  **Selectable playback modes** — Local Monitor or VoIP Playback, with Shizuku access managed separately
 -  **Live VU meters** — Input, output, and gain reduction metering
 -  **Preset system** — Save and load your effect configurations
 -  **Built-in crash reporter** — Crash logs auto-shared for easy bug reporting
@@ -63,11 +65,13 @@ No Play Store. No sign-in. Just install and go.
 
 ### Shizuku (optional, no root needed)
 
-Shizuku gives MicUp ADB-level access for better audio routing:
+MicUp can detect the Shizuku service and request permission. This connection does not create a system virtual microphone. To connect:
 
 1. Install [Shizuku](https://play.google.com/store/apps/details?id=moe.shizuku.privileged.api) from Play Store
 2. Start Shizuku via wireless debugging (Android 11+)
-3. Open MicUp → Settings → Shizuku → tap **Grant**
+3. Open MicUp → Settings → Shizuku → tap **Grant**. Use the connection check button if needed; the app also detects a service started after MicUp.
+
+Shizuku and root access alone do not install a virtual microphone. The previous shell/ALSA routing placeholders are not presented as working audio modes.
 
 ---
 
@@ -88,6 +92,8 @@ Run the Android regression tests with `./gradlew testDebugUnitTest`. The native 
 ```bash
 g++ -std=c++17 -O3 -ffast-math -Iapp/src/main/cpp app/src/test/cpp/MicrophoneGainTest.cpp -o /tmp/micup-gain-test
 /tmp/micup-gain-test
+g++ -std=c++17 -O3 -ffast-math -Iapp/src/main/cpp app/src/test/cpp/VoiceFiltersTest.cpp -o /tmp/micup-filter-test
+/tmp/micup-filter-test
 ```
 
 ---
@@ -108,8 +114,7 @@ g++ -std=c++17 -O3 -ffast-math -Iapp/src/main/cpp app/src/test/cpp/MicrophoneGai
 - Android 8.0+ (API 26)
 - ARM64, ARMv7, or x86_64
 - Microphone permission
-- For Shizuku tier: Android 11+
-- For Root tier: Magisk
+- For Shizuku: start the external Shizuku service first (wireless debugging requires Android 11+)
 
 ---
 

@@ -9,6 +9,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.delay
+import kotlin.math.roundToInt
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -21,6 +27,7 @@ import androidx.navigation.NavController
 import com.micplugin.plugin.PluginFormat
 import com.micplugin.service.VirtualMicTier
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun MainScreen(navController: NavController, vm: AudioViewModel = hiltViewModel()) {
     val context     = LocalContext.current
@@ -39,6 +46,27 @@ fun MainScreen(navController: NavController, vm: AudioViewModel = hiltViewModel(
     val pluginSlots by vm.pluginSlots.collectAsState()
     val tier        by vm.virtualMicTier.collectAsState()
 
+    val monitorVolume by vm.monitorVolume.collectAsState()
+    val deviceVolumes by vm.deviceVolumes.collectAsState()
+    val volumeError by vm.volumeError.collectAsState()
+    val filters by vm.voiceFilters.collectAsState()
+    val devices by vm.outputDevices.collectAsState()
+    val selectedDevice by vm.selectedOutputDeviceId.collectAsState()
+    val shizukuState by vm.shizukuState.collectAsState()
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+    var showOutputMenu by remember { mutableStateOf(false) }
+    val scrollState = rememberScrollState()
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) { vm.refreshDeviceVolumes(); delay(500) }
+        }
+    }
+    LaunchedEffect(selectedTab) {
+        scrollState.scrollTo(0)
+        if (selectedTab == 0) vm.loadOutputDevices(context)
+    }
+
     var showSaveDialog by remember { mutableStateOf(false) }
     var presetName     by remember { mutableStateOf("") }
 
@@ -46,7 +74,6 @@ fun MainScreen(navController: NavController, vm: AudioViewModel = hiltViewModel(
         modifier = Modifier
             .fillMaxSize()
             .background(StudioColors.Background)
-            .verticalScroll(rememberScrollState())
             .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
@@ -56,7 +83,7 @@ fun MainScreen(navController: NavController, vm: AudioViewModel = hiltViewModel(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                "MIC PLUGIN",
+                "MicUp",
                 style = MaterialTheme.typography.titleLarge,
                 color = StudioColors.TextPrimary,
                 fontWeight = FontWeight.Black,
@@ -71,7 +98,7 @@ fun MainScreen(navController: NavController, vm: AudioViewModel = hiltViewModel(
             IconButton(
                 onClick = { vm.toggleEngine(context) },
                 modifier = Modifier
-                    .size(36.dp)
+                    .size(48.dp)
                     .background(
                         if (status.isRunning) StudioColors.Accent else StudioColors.Card,
                         RoundedCornerShape(6.dp),
@@ -89,6 +116,9 @@ fun MainScreen(navController: NavController, vm: AudioViewModel = hiltViewModel(
             }
         }
 
+        DashboardTabs(selectedTab) { selectedTab = it }
+        Column(Modifier.weight(1f).verticalScroll(scrollState),
+            verticalArrangement = Arrangement.spacedBy(10.dp)) {
         // ── Preset chips ──────────────────────────────────────────────────────
         LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             items(presets) { preset ->
@@ -138,6 +168,7 @@ fun MainScreen(navController: NavController, vm: AudioViewModel = hiltViewModel(
             }
         }
 
+        if (selectedTab == 0) {
         // Master bypass toggle
         if (status.isRunning) {
             Row(
@@ -182,7 +213,7 @@ fun MainScreen(navController: NavController, vm: AudioViewModel = hiltViewModel(
                         letterSpacing = 1.sp,
                     )
                     Text(
-                        if (monitoring) "Hearing yourself" else "Silent to you — still routed",
+                        if (monitoring) "Hearing yourself" else "Воспроизведение выключено",
                         fontSize = 10.sp,
                         color = StudioColors.TextMuted,
                     )
@@ -214,6 +245,55 @@ fun MainScreen(navController: NavController, vm: AudioViewModel = hiltViewModel(
             }
         }
 
+        ControlPanel("Динамики и воспроизведение") {
+            ParamSlider("Громкость MicUp", monitorVolume * 100f, { vm.setMonitorVolume(it / 100f) },
+                0f..100f, " %")
+            ParamSlider("Музыка / видео на телефоне", deviceVolumes.media.toFloat(),
+                { vm.setDeviceMediaVolume(it.roundToInt()) }, 0f..deviceVolumes.mediaMax.coerceAtLeast(1).toFloat(),
+                steps = (deviceVolumes.mediaMax - 1).coerceAtLeast(0),
+                enabled = !deviceVolumes.fixed && deviceVolumes.mediaMax > 0)
+            ParamSlider("Разговорный звук / VoIP", deviceVolumes.call.toFloat(),
+                { vm.setDeviceCallVolume(it.roundToInt()) },
+                deviceVolumes.callMin.toFloat()..deviceVolumes.callMax.coerceAtLeast(deviceVolumes.callMin + 1).toFloat(),
+                steps = (deviceVolumes.callMax - deviceVolumes.callMin - 1).coerceAtLeast(0),
+                enabled = !deviceVolumes.fixed && deviceVolumes.callMax > deviceVolumes.callMin)
+            volumeError?.let { Text(it, color = StudioColors.MeterAmber, fontSize = 12.sp) }
+            Text("Громкость устройства меняется также для других приложений.",
+                fontSize = 11.sp, color = StudioColors.TextMuted)
+            Box {
+                OutlinedButton(onClick = { showOutputMenu = true }) {
+                    Text("Выход: " + (devices.find { it.id == selectedDevice }?.name ?: "Авто"))
+                }
+                DropdownMenu(expanded = showOutputMenu, onDismissRequest = { showOutputMenu = false }) {
+                    devices.forEach { device ->
+                        DropdownMenuItem(text = { Text(device.name) }, onClick = {
+                            vm.setOutputDevice(context, device.id); showOutputMenu = false
+                        })
+                    }
+                }
+            }
+        }
+        OutlinedButton(onClick = { navController.navigate("settings") }, modifier = Modifier.fillMaxWidth()) {
+            Text("Shizuku: " + when (shizukuState) {
+                com.micplugin.service.ShizukuState.READY -> "подключён"
+                com.micplugin.service.ShizukuState.NEED_GRANT -> "нужно разрешение"
+                else -> "подключить"
+            })
+        }
+        }
+
+        if (selectedTab == 1) {
+        EffectCard("Убрать гул и низкие частоты", filters.highPassEnabled,
+            { vm.setVoiceFilters(filters.copy(highPassEnabled = it)) }) {
+            ParamSlider("Срез низких частот", filters.highPassHz,
+                { vm.setVoiceFilters(filters.copy(highPassHz = it)) }, 20f..300f, " Hz")
+        }
+        EffectCard("Смягчить высокие частоты", filters.lowPassEnabled,
+            { vm.setVoiceFilters(filters.copy(lowPassEnabled = it)) }) {
+            ParamSlider("Срез высоких частот", filters.lowPassHz,
+                { vm.setVoiceFilters(filters.copy(lowPassHz = it)) }, 3000f..20000f, " Hz")
+        }
+        TextButton(onClick = { vm.setVoiceFilters(VoiceFilterState()) }) { Text("Сбросить фильтры") }
         // ── Noise Gate ────────────────────────────────────────────────────────
         EffectCard(
             title   = "Noise Gate",
@@ -238,8 +318,8 @@ fun MainScreen(navController: NavController, vm: AudioViewModel = hiltViewModel(
         ) {
             val freqLabels = listOf("31","63","125","250","500","1k","2k","4k","8k","16k")
             Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 freqLabels.forEachIndexed { i, freq ->
                     EqBandFader(
@@ -258,9 +338,10 @@ fun MainScreen(navController: NavController, vm: AudioViewModel = hiltViewModel(
             onToggle = vm::setCompEnabled,
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
+                FlowRow(
+                    Modifier.fillMaxWidth(), maxItemsInEachRow = 3,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     KnobWidget("THRESH", compState.thresholdDb, vm::setCompThreshold,
                         -60f..0f, unit = "dB")
@@ -303,6 +384,8 @@ fun MainScreen(navController: NavController, vm: AudioViewModel = hiltViewModel(
                 -12f..12f, " st")
         }
 
+        }
+        if (selectedTab == 2) {
         // ── Plugin Chain ─────────────────────────────────────────────────────
         SectionLabel("Plugin Chain")
         pluginSlots.forEachIndexed { idx, slot ->
@@ -324,7 +407,9 @@ fun MainScreen(navController: NavController, vm: AudioViewModel = hiltViewModel(
             Text("Add Plugin", color = StudioColors.Accent)
         }
 
+        }
         Spacer(Modifier.height(20.dp))
+        }
     }
 
     // ── Save preset dialog ────────────────────────────────────────────────────

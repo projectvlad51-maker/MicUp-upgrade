@@ -39,6 +39,10 @@ data class EffectState(
     val pitchEnabled:  Boolean = false,
     val pitchSemitones: Float  = 0f,
     val microphoneGainDb: Float = 0f,
+    val highPassEnabled: Boolean = false,
+    val highPassHz: Float = 80f,
+    val lowPassEnabled: Boolean = false,
+    val lowPassHz: Float = 12000f,
 )
 
 @Serializable

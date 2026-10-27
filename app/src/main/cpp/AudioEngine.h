@@ -1,5 +1,6 @@
 #pragma once
 #include "MicrophoneGain.h"
+#include "VoiceFilters.h"
 
 #include <oboe/Oboe.h>
 #include <atomic>
@@ -55,6 +56,8 @@ private:
 // ─── Atomic parameter block (UI→Audio thread) ────────────────────────────────
 struct EffectParams {
     std::atomic<float> microphoneGainDb{0.0f};
+    std::atomic<bool> highPassEnabled{false}, lowPassEnabled{false};
+    std::atomic<float> highPassHz{80.0f}, lowPassHz{12000.0f};
 
     // NoiseGate
     std::atomic<float> gateThresholdDb{-50.0f};
@@ -203,6 +206,7 @@ private:
     // Params (UI writes, audio thread reads)
     EffectParams params_;
     MicrophoneGain microphoneGain_;
+    VoiceFilters voiceFilters_;
     PluginHost*  pluginHost_ = nullptr;
 
     // Work buffer
