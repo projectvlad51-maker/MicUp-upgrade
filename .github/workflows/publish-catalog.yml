@@ -2,6 +2,12 @@ name: Publish version catalog
 on:
   push:
     tags: ['lite-v*']
+    branches: ['main']
+    paths:
+      - 'docs/release-catalog.json'
+      - 'docs/releases/**'
+      - 'scripts/publish_releases.py'
+      - '.github/workflows/publish-catalog.yml'
   workflow_dispatch:
 permissions:
   contents: write

@@ -23,4 +23,4 @@
 
 Метаданные и контрольные суммы: [release-catalog.json](../release-catalog.json). Команда `python scripts/publish_releases.py` из корня проверяет описания и APK без сетевых изменений. Для реальной публикации после авторизации: `python scripts/publish_releases.py --publish --make-public`.
 
-Workflow `Publish version catalog` запускает публикацию проверенных APK на теге `lite-v*` или вручную из Actions. Если репозиторий закрытый, релизы сначала доступны только его участникам; публичными они становятся после изменения видимости репозитория на Public. Успех или ошибка workflow записывается в ветке `publication-status`.
+Workflow `Publish version catalog` запускает публикацию проверенных APK при изменении каталога в `main`, на теге `lite-v*` или вручную из Actions. Если репозиторий закрытый, релизы сначала доступны только его участникам; публичными они становятся после изменения видимости репозитория на Public. Успех или ошибка workflow записывается в ветке `publication-status`.
