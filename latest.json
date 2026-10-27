@@ -1,8 +1,65 @@
 {
-  "source": "e1f25b59955874b777ea0a756ce806bea57488e4",
+  "source": "cccee076bd47ebe34e08c7fee4a24315086dc0d6",
   "ref": "refs/heads/main",
-  "result": "success",
-  "visibility": "private",
-  "time_utc": "2026-10-27T05:13:03.433373+00:00",
-  "error": null
+  "result": "failure",
+  "visibility": "public",
+  "time_utc": "2026-10-27T05:15:16.602465+00:00",
+  "error": "RuntimeError: GitHub API PATCH repos/projectvlad51-maker/12/releases/425055323 failed: gh: HTTP 307",
+  "visibility_error": "GitHub API PATCH repos/projectvlad51-maker/12 failed: gh: Resource not accessible by integration (HTTP 403)",
+  "confirmed_releases": [
+    {
+      "tag": "upstream-archive-v1.0.6",
+      "draft": false,
+      "assets": []
+    },
+    {
+      "tag": "micup-v1.0.9",
+      "draft": false,
+      "assets": [
+        "MicUp-1.0.9-mic-boost-debug.apk"
+      ]
+    },
+    {
+      "tag": "micup-v1.0.8",
+      "draft": false,
+      "assets": [
+        "MicUp-1.0.8-voip-fix-debug.apk"
+      ]
+    },
+    {
+      "tag": "micup-v1.0.7",
+      "draft": false,
+      "assets": [
+        "MicUp-1.0.7-compressor-fix-debug.apk"
+      ]
+    },
+    {
+      "tag": "micup-v1.0.12",
+      "draft": false,
+      "assets": [
+        "MicUp-1.0.12-volume-controls-debug.apk"
+      ]
+    },
+    {
+      "tag": "micup-v1.0.11",
+      "draft": false,
+      "assets": [
+        "MicUp-1.0.11-shizuku-debug.apk"
+      ]
+    },
+    {
+      "tag": "micup-v1.0.10",
+      "draft": false,
+      "assets": [
+        "MicUp-1.0.10-audio-controls-debug.apk"
+      ]
+    },
+    {
+      "tag": "lite-v1.0.0",
+      "draft": false,
+      "assets": [
+        "MicUp-Lite-1.0.0.apk"
+      ]
+    }
+  ]
 }
