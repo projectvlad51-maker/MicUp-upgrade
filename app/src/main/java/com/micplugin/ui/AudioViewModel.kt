@@ -80,6 +80,7 @@ class AudioViewModel @Inject constructor(
     val presets:     StateFlow<List<Preset>>   = presetManager.presets
     val virtualMicTier: StateFlow<VirtualMicTier> = virtualMicService.activeTier
     val shizukuState: StateFlow<ShizukuState> = shizukuManager.state
+    val shizukuPermissionSettingsRequired = shizukuManager.permissionSettingsRequired
 
     val deviceVolumes = deviceVolumeController.volumes
     val volumeError = deviceVolumeController.error
@@ -332,6 +333,34 @@ class AudioViewModel @Inject constructor(
     fun rescan() { viewModelScope.launch { pluginManager.scanAll() } }
 
     fun selectPlaybackTier(tier: VirtualMicTier) = virtualMicService.selectPlaybackTier(tier)
+
+    fun connectShizuku(context: Context) {
+        shizukuManager.init()
+        when (shizukuManager.state.value) {
+            ShizukuState.NEED_GRANT -> {
+                if (shizukuManager.permissionSettingsRequired.value) openShizuku(context)
+                else shizukuManager.requestPermission()
+            }
+            ShizukuState.READY -> shizukuManager.refreshState()
+            ShizukuState.UNAVAILABLE -> openShizuku(context)
+        }
+    }
+
+    private fun openShizuku(context: Context) {
+        val intent = context.packageManager.getLaunchIntentForPackage("moe.shizuku.privileged.api")
+        if (intent == null) {
+            android.widget.Toast.makeText(context,
+                "Установите Shizuku и запустите его сервис", android.widget.Toast.LENGTH_LONG).show()
+        } else {
+            try {
+                context.startActivity(intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+            } catch (_: android.content.ActivityNotFoundException) {
+                android.widget.Toast.makeText(context,
+                    "Откройте Shizuku вручную: разрешите доступ MicUp и запустите сервис",
+                    android.widget.Toast.LENGTH_LONG).show()
+            }
+        }
+    }
 
     fun refreshShizuku() = shizukuManager.init()
 

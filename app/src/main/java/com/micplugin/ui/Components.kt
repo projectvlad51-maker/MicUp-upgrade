@@ -441,3 +441,35 @@ internal fun ControlPanel(title: String, content: @Composable ColumnScope.() -> 
         }
     }
 }
+
+
+@Composable
+internal fun ShizukuConnectionRow(
+    state: com.micplugin.service.ShizukuState,
+    permissionSettingsRequired: Boolean = false,
+    onConnect: () -> Unit,
+) {
+    val status = when (state) {
+        com.micplugin.service.ShizukuState.READY -> "Подключён · доступ разрешён"
+        com.micplugin.service.ShizukuState.NEED_GRANT -> if (permissionSettingsRequired) "Разрешите MicUp в Shizuku" else "Нужно разрешение для MicUp"
+        com.micplugin.service.ShizukuState.UNAVAILABLE -> "Сервис не подключён"
+    }
+    val action = when (state) {
+        com.micplugin.service.ShizukuState.READY -> "Проверить"
+        com.micplugin.service.ShizukuState.NEED_GRANT -> if (permissionSettingsRequired) "Открыть доступ" else "Разрешить"
+        com.micplugin.service.ShizukuState.UNAVAILABLE -> "Открыть Shizuku"
+    }
+    Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp),
+        color = StudioColors.Card, border = BorderStroke(1.dp, StudioColors.Border)) {
+        Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.weight(1f)) {
+                Text("Shizuku", style = MaterialTheme.typography.titleSmall, color = StudioColors.TextPrimary)
+                Text(status, fontSize = 11.sp, color = if (state == com.micplugin.service.ShizukuState.READY)
+                    StudioColors.Accent else StudioColors.TextMuted)
+            }
+            TextButton(onClick = onConnect) { Text(action) }
+        }
+    }
+}

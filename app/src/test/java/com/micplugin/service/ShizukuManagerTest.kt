@@ -12,6 +12,8 @@ class ShizukuManagerTest {
     private class Bridge : ShizukuBridge {
         var connected = false
         var granted = false
+        var deniedPermanently = false
+        override fun permissionNeedsSettings() = deniedPermanently
         var registrations = 0
         var requests = 0
         lateinit var received: () -> Unit
@@ -39,6 +41,19 @@ class ShizukuManagerTest {
         bridge.granted = true
         bridge.permission()
         assertEquals(ShizukuState.READY, manager.state.value)
+    }
+
+    @Test fun permanentlyDeniedPermissionRequiresManagerSettingsInsteadOfAnotherPrompt() {
+        val bridge = Bridge().apply { connected = true; deniedPermanently = true }
+        val manager = ShizukuManager(bridge)
+        manager.requestPermission()
+        assertEquals(ShizukuState.NEED_GRANT, manager.state.value)
+        assertTrue(manager.permissionSettingsRequired.value)
+        assertEquals(0, bridge.requests)
+        bridge.granted = true
+        bridge.permission()
+        assertEquals(ShizukuState.READY, manager.state.value)
+        assertFalse(manager.permissionSettingsRequired.value)
     }
 
     @Test fun refreshDoesNotRegisterDuplicateListeners() {

@@ -53,6 +53,7 @@ fun MainScreen(navController: NavController, vm: AudioViewModel = hiltViewModel(
     val devices by vm.outputDevices.collectAsState()
     val selectedDevice by vm.selectedOutputDeviceId.collectAsState()
     val shizukuState by vm.shizukuState.collectAsState()
+    val shizukuPermissionSettingsRequired by vm.shizukuPermissionSettingsRequired.collectAsState()
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var showOutputMenu by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
@@ -116,6 +117,7 @@ fun MainScreen(navController: NavController, vm: AudioViewModel = hiltViewModel(
             }
         }
 
+        ShizukuConnectionRow(shizukuState, shizukuPermissionSettingsRequired) { vm.connectShizuku(context) }
         DashboardTabs(selectedTab) { selectedTab = it }
         Column(Modifier.weight(1f).verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -273,13 +275,7 @@ fun MainScreen(navController: NavController, vm: AudioViewModel = hiltViewModel(
                 }
             }
         }
-        OutlinedButton(onClick = { navController.navigate("settings") }, modifier = Modifier.fillMaxWidth()) {
-            Text("Shizuku: " + when (shizukuState) {
-                com.micplugin.service.ShizukuState.READY -> "подключён"
-                com.micplugin.service.ShizukuState.NEED_GRANT -> "нужно разрешение"
-                else -> "подключить"
-            })
-        }
+
         }
 
         if (selectedTab == 1) {

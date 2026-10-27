@@ -29,6 +29,7 @@ fun SettingsScreen(navController: NavController, vm: AudioViewModel = hiltViewMo
     val status      by vm.engineStatus.collectAsState()
     val tier        by vm.virtualMicTier.collectAsState()
     val shizukuState by vm.shizukuState.collectAsState()
+    val shizukuPermissionSettingsRequired by vm.shizukuPermissionSettingsRequired.collectAsState()
     val context     = LocalContext.current
 
     var crashReports by remember { mutableStateOf<List<java.io.File>>(emptyList()) }
@@ -64,27 +65,7 @@ fun SettingsScreen(navController: NavController, vm: AudioViewModel = hiltViewMo
 
             // ── Shizuku ───────────────────────────────────────────────────────
             SettingsSection("Shizuku (ADB Access)") {
-                val (stateColor, stateLabel) = when (shizukuState) {
-                    ShizukuState.READY       -> Color(0xFF3DFCAC) to "READY"
-                    ShizukuState.NEED_GRANT  -> Color(0xFFFFD700) to "NEED PERMISSION"
-                    ShizukuState.UNAVAILABLE -> Color(0xFFFF6B6B) to "NOT RUNNING"
-                }
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween) {
-                    Column {
-                        Text("Status", fontSize = 12.sp, color = StudioColors.TextMuted)
-                        Text(stateLabel, fontSize = 11.sp, color = stateColor)
-                    }
-                    if (shizukuState == ShizukuState.NEED_GRANT) {
-                        Button(
-                            onClick = { vm.requestShizukuPermission() },
-                            colors  = ButtonDefaults.buttonColors(containerColor = Color(0xFF00B4D8)),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                        ) {
-                            Text("Grant", fontSize = 11.sp)
-                        }
-                    }
-                }
+                ShizukuConnectionRow(shizukuState, shizukuPermissionSettingsRequired) { vm.connectShizuku(context) }
                 TextButton(onClick = { vm.refreshShizuku() }) { Text("Проверить подключение") }
                 if (shizukuState == ShizukuState.UNAVAILABLE) {
                     Text(
@@ -134,6 +115,8 @@ fun SettingsScreen(navController: NavController, vm: AudioViewModel = hiltViewMo
                         isLocked = false
                     )
                 }
+                SettingsActionRow("Shizuku — подключение", Icons.Default.Settings) { vm.connectShizuku(context) }
+
             }
 
 

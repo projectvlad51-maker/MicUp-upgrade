@@ -12,6 +12,7 @@ enum class ShizukuState { UNAVAILABLE, NEED_GRANT, READY }
 
 internal interface ShizukuBridge {
     fun ping(): Boolean
+    fun permissionNeedsSettings(): Boolean = false
     fun permissionGranted(): Boolean
     fun listen(onConnected: () -> Unit, onDisconnected: () -> Unit, onPermissionResult: () -> Unit)
     fun requestPermission()
@@ -19,6 +20,7 @@ internal interface ShizukuBridge {
 
 private object AndroidShizukuBridge : ShizukuBridge {
     override fun ping() = Shizuku.pingBinder()
+    override fun permissionNeedsSettings() = Shizuku.shouldShowRequestPermissionRationale()
     override fun permissionGranted() = Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
     override fun listen(onConnected: () -> Unit, onDisconnected: () -> Unit, onPermissionResult: () -> Unit) {
         Shizuku.addBinderReceivedListener { onConnected() }
@@ -35,11 +37,13 @@ class ShizukuManager internal constructor(private val bridge: ShizukuBridge) {
     private val _state = MutableStateFlow(ShizukuState.UNAVAILABLE)
     val state: StateFlow<ShizukuState> = _state
     private var initialized = false
+    private val _permissionSettingsRequired = MutableStateFlow(false)
+    val permissionSettingsRequired: StateFlow<Boolean> = _permissionSettingsRequired
 
     fun init() {
         if (!initialized) {
             // Register even when Shizuku has not started yet.
-            bridge.listen(::refreshState, { _state.value = ShizukuState.UNAVAILABLE }, ::refreshState)
+            bridge.listen(::refreshState, { _state.value = ShizukuState.UNAVAILABLE; _permissionSettingsRequired.value = false }, ::refreshState)
             initialized = true
         }
         refreshState()
@@ -47,12 +51,16 @@ class ShizukuManager internal constructor(private val bridge: ShizukuBridge) {
 
     fun refreshState() {
         _state.value = try {
+            val connected = bridge.ping()
+            val granted = connected && bridge.permissionGranted()
+            _permissionSettingsRequired.value = connected && !granted && bridge.permissionNeedsSettings()
             when {
-                !bridge.ping() -> ShizukuState.UNAVAILABLE
-                bridge.permissionGranted() -> ShizukuState.READY
+                !connected -> ShizukuState.UNAVAILABLE
+                granted -> ShizukuState.READY
                 else -> ShizukuState.NEED_GRANT
             }
         } catch (e: Exception) {
+            _permissionSettingsRequired.value = false
             Log.w("ShizukuManager", "Connection check failed", e)
             ShizukuState.UNAVAILABLE
         }
@@ -60,7 +68,7 @@ class ShizukuManager internal constructor(private val bridge: ShizukuBridge) {
 
     fun requestPermission() {
         init()
-        if (_state.value != ShizukuState.NEED_GRANT) return
+        if (_state.value != ShizukuState.NEED_GRANT || _permissionSettingsRequired.value) return
         try {
             bridge.requestPermission()
         } catch (e: Exception) {

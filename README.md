@@ -31,7 +31,7 @@ No PC required. No monthly subscription.
 -  **Plugin support** — Load LV2, CLAP, and VST3 native plugins (`.so`, `.clap`, `.lv2`)
 -  **Open plugin files** — Tap a plugin file in your file manager to import it directly
 -  **Monitor toggle** — Hear your processed audio through headphones, or silence local playback
--  **Shizuku connection** — permission request, live status, and reconnect detection when the service starts later
+-  **Shizuku connection** — a pinned row on every dashboard tab, direct manager launch, permission request, denied-permission settings action, and live reconnect status
 -  **Selectable playback modes** — Local Monitor or VoIP Playback, with Shizuku access managed separately
 -  **Live VU meters** — Input, output, and gain reduction metering
 -  **Preset system** — Save and load your effect configurations
