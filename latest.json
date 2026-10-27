@@ -1,9 +1,9 @@
 {
-  "source": "4d324ccc8138d2c9f5a59fbdd78e05751a77c788",
+  "source": "f1d295a48714717f19ae865c1d1b48ff057a8335",
   "ref": "refs/heads/main",
   "result": "success",
   "visibility": "public",
-  "time_utc": "2026-10-27T06:19:49.296437+00:00",
+  "time_utc": "2026-10-27T06:58:48.811104+00:00",
   "error": null,
   "visibility_error": null,
   "confirmed_releases": [
@@ -31,6 +31,13 @@
       "draft": false,
       "assets": [
         "MicUp-1.0.7-compressor-fix-debug.apk"
+      ]
+    },
+    {
+      "tag": "micup-v1.0.15",
+      "draft": false,
+      "assets": [
+        "MicUp-1.0.15-original-config.apk"
       ]
     },
     {
@@ -66,6 +73,13 @@
       "draft": false,
       "assets": [
         "MicUp-1.0.10-audio-controls-debug.apk"
+      ]
+    },
+    {
+      "tag": "lite-v1.0.3",
+      "draft": false,
+      "assets": [
+        "MicUp-Lite-1.0.3.apk"
       ]
     },
     {
