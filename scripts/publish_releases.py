@@ -51,7 +51,12 @@ def main():
         print('Validation complete; no network requests or GitHub changes made.')
         return
     if args.make_public:
-        api('repos/'+REPO,'PATCH',{'private':False})
+        try:
+            api('repos/'+REPO,'PATCH',{'private':False})
+        except RuntimeError as error:
+            if not args.stage_private:
+                raise
+            print('Public visibility update was not permitted:', error)
     visibility = api('repos/'+REPO)['visibility']
     if visibility != 'public' and not args.stage_private:
         raise RuntimeError('Repository is not public; use --make-public when authorized.')
