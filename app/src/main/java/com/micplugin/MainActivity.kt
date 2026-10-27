@@ -46,12 +46,27 @@ class MainActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT <= 32) add(Manifest.permission.READ_EXTERNAL_STORAGE)
     }.toTypedArray()
 
+    private var startAfterPermission = false
+
+    fun requestAudioStart() {
+        if (androidx.core.content.ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+            == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            startAudioService()
+        } else {
+            startAfterPermission = true
+            permissionLauncher.launch(permissionsToRequest)
+        }
+    }
+
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { results ->
-        val allGranted = results.values.all { it }
-        if (allGranted) startAudioService()
-        requestBatteryOptimizationExemption()
+        if (startAfterPermission) {
+            startAfterPermission = false
+            if (results[Manifest.permission.RECORD_AUDIO] == true) startAudioService()
+            else android.widget.Toast.makeText(this, "Для запуска разрешите доступ к микрофону",
+                android.widget.Toast.LENGTH_LONG).show()
+        }
     }
 
     override fun onResume() {
@@ -61,10 +76,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        permissionLauncher.launch(permissionsToRequest)
         // Handle file opened from file manager
         handleIncomingPlugin(intent)
-        requestAllFilesPermission()
         setContent {
             MicPluginTheme {
                 val navController = rememberNavController()
@@ -125,22 +138,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-
-    private fun requestAllFilesPermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            if (!Environment.isExternalStorageManager()) {
-                try {
-                    val intent = android.content.Intent(
-                        Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
-                        android.net.Uri.parse("package:$packageName")
-                    )
-                    startActivity(intent)
-                } catch (_: Exception) {
-                    startActivity(android.content.Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
-                }
-            }
-        }
-    }
 
     override fun onDestroy() {
         super.onDestroy()

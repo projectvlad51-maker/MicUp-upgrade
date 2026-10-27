@@ -24,6 +24,7 @@ No PC required. No monthly subscription.
 
 ## Features
 
+-  **Playback loudness boost** — 0 to +24 dB on the MicUp playback session using Android LoudnessEnhancer, with explicit unsupported-device status
 -  **Audio dashboard** — fixed tabs for volume, effects, and plugins; separate MicUp, media, and call volume controls
 -  **Voice filters** — high-pass cut (20–300 Hz) and low-pass cut (3–20 kHz), with preset support
 -  **Mic Boost** — independent 0 to +36 dB boost, smooth level changes, reset button, and preset support
@@ -35,6 +36,7 @@ No PC required. No monthly subscription.
 -  **Selectable playback modes** — Local Monitor or VoIP Playback, with Shizuku access managed separately
 -  **Live VU meters** — Input, output, and gain reduction metering
 -  **Preset system** — Save and load your effect configurations
+-  **Quiet foreground status** — one silent service notification, no repeated alert for unchanged status, removed when processing stops
 -  **Built-in crash reporter** — Crash logs auto-shared for easy bug reporting
 
 ---
@@ -53,8 +55,8 @@ No Play Store. No sign-in. Just install and go.
 
 1. Install the APK
 2. Grant microphone permission when prompted
-3. Tap the **power button** to start audio processing
-4. Adjust effects with the sliders and knobs
+3. Tap the **power button** to grant microphone permission and start audio processing. Opening the app does not start audio or open storage settings automatically
+4. Adjust effects with the sliders and knobs. The voice-processing switch is on when effects are active; playback has its own switch and volume/boost controls
 5. In Settings, select **Local Monitor** or **VoIP Playback**, then use the power button to start audio. These modes control playback; they do not replace another app’s microphone input
 
 ### Loading Plugins

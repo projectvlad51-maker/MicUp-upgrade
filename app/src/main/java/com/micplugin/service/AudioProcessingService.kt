@@ -17,7 +17,7 @@ import javax.inject.Inject
 class AudioProcessingService : Service() {
 
     companion object {
-        const val CHANNEL_ID   = "micplugin_audio"
+        const val CHANNEL_ID   = AudioNotifications.CHANNEL_ID
         const val NOTIF_ID     = 1001
         const val ACTION_STOP  = "com.micplugin.STOP"
 
@@ -34,9 +34,12 @@ class AudioProcessingService : Service() {
 
     private var wakeLock: PowerManager.WakeLock? = null
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+    private var statusJob: Job? = null
+    private var lastNotificationKey: String? = null
 
     private fun startStatusUpdates() {
-        scope.launch {
+        statusJob?.cancel()
+        statusJob = scope.launch {
             var failCount = 0
             while (isActive) {
                 try {
@@ -62,42 +65,17 @@ class AudioProcessingService : Service() {
     }
 
     private fun updateNotification(text: String, plugins: Int, latencyMs: Float) {
+        val key = "$text:${latencyMs.toInt()}"
+        if (lastNotificationKey == key) return
         val nm = getSystemService(NotificationManager::class.java)
         nm.notify(NOTIF_ID, buildNotification(text, plugins, latencyMs))
+        lastNotificationKey = key
     }
 
-    private fun buildNotification(text: String, plugins: Int, latencyMs: Float): Notification {
-        val mainIntent  = PendingIntent.getActivity(
-            this, 0, Intent(this, MainActivity::class.java),
-            PendingIntent.FLAG_IMMUTABLE)
-        val stopIntent  = PendingIntent.getService(
-            this, 1, Intent(this, AudioProcessingService::class.java).apply { action = ACTION_STOP },
-            PendingIntent.FLAG_IMMUTABLE)
+    private fun buildNotification(text: String, plugins: Int, latencyMs: Float): Notification =
+        AudioNotifications.build(this, text, latencyMs)
 
-        val latencyStr = if (latencyMs > 0f) " · ${latencyMs.toInt()}ms" else ""
-        return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("MicUp Active")
-            .setContentText("$text$latencyStr")
-            .setSmallIcon(android.R.drawable.ic_btn_speak_now)
-            .setContentIntent(mainIntent)
-            .setOngoing(true)
-            .setPriority(NotificationCompat.PRIORITY_MAX)
-            .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .addAction(android.R.drawable.ic_media_pause, "Stop", stopIntent)
-            .build()
-    }
-
-    private fun createNotificationChannel() {
-        val ch = NotificationChannel(
-            CHANNEL_ID, "MicUp Audio",
-            NotificationManager.IMPORTANCE_HIGH
-        ).apply {
-            description = "Real-time audio processing service"
-            setShowBadge(false)
-        }
-        getSystemService(NotificationManager::class.java).createNotificationChannel(ch)
-    }
+    private fun createNotificationChannel() = AudioNotifications.createChannel(this)
 
     private fun acquireWakeLock() {
         val pm = getSystemService(PowerManager::class.java)
@@ -127,14 +105,13 @@ class AudioProcessingService : Service() {
         }
         // Wire processed audio from C++ → SoftwareLoopback monitor
         audioEngine.setMonitorCallback { buf: FloatArray, size: Int -> SoftwareLoopback.writeProcessed(buf, size) }
-        val started = audioEngine.start()
+        val started = audioEngine.status.value.isRunning || audioEngine.start()
         if (!started) {
-            SoftwareLoopback.start(this)
-            startStatusUpdates()
-            audioEngine.setMonitorCallback { buf: FloatArray, size: Int -> SoftwareLoopback.writeProcessed(buf, size) }
-        } else {
-            startStatusUpdates()
+            // Do not leave a fake active notification or spawn update loops after a failed start.
+            stopSelf()
+            return START_NOT_STICKY
         }
+        startStatusUpdates()
         if (!SoftwareLoopback.isRunning) {
             SoftwareLoopback.start(this)
         }
@@ -145,6 +122,7 @@ class AudioProcessingService : Service() {
         scope.cancel()
         audioEngine.stop()
         SoftwareLoopback.stop()
+        stopForeground(STOP_FOREGROUND_REMOVE)
         wakeLock?.release()
         super.onDestroy()
     }

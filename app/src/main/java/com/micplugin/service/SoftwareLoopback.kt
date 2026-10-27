@@ -26,6 +26,9 @@ object SoftwareLoopback {
     private var monitorVolume = 1f
     private var focusMultiplier = 1f
     private var previousAudioMode: Int? = null
+    private val speakerBoost = SpeakerBoostController()
+    val speakerBoostState = speakerBoost.state
+    fun setSpeakerBoost(db: Float) = speakerBoost.setGain(db)
 
     fun setVoipMode(context: Context, enabled: Boolean) {
         if (voipMode == enabled) return
@@ -90,6 +93,7 @@ object SoftwareLoopback {
             restoreAudioMode()
             return
         }
+        speakerBoost.attach(monitorTrack!!.audioSessionId)
         focusMultiplier = 1f
         applyVolume()
 
@@ -128,6 +132,7 @@ object SoftwareLoopback {
         workerThread?.interrupt()
         workerThread?.join(500)
         workerThread = null
+        speakerBoost.detach()
         try { monitorTrack?.stop(); monitorTrack?.release() } catch (_: Exception) {}
         monitorTrack = null
         abandonAudioFocus()

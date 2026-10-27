@@ -47,6 +47,7 @@ fun MainScreen(navController: NavController, vm: AudioViewModel = hiltViewModel(
     val tier        by vm.virtualMicTier.collectAsState()
 
     val monitorVolume by vm.monitorVolume.collectAsState()
+    val speakerBoost by vm.speakerBoostState.collectAsState()
     val deviceVolumes by vm.deviceVolumes.collectAsState()
     val volumeError by vm.volumeError.collectAsState()
     val filters by vm.voiceFilters.collectAsState()
@@ -105,10 +106,13 @@ fun MainScreen(navController: NavController, vm: AudioViewModel = hiltViewModel(
                         RoundedCornerShape(6.dp),
                     ),
             ) {
-                Icon(
-                    Icons.Default.PowerSettingsNew, "Power",
-                    tint = if (status.isRunning) Color.White else StudioColors.TextMuted,
-                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Default.PowerSettingsNew,
+                        if (status.isRunning) "Остановить MicUp" else "Запустить MicUp",
+                        tint = if (status.isRunning) Color.White else StudioColors.TextMuted)
+                    Text(if (status.isRunning) "Стоп" else "Пуск", fontSize = 9.sp,
+                        color = if (status.isRunning) Color.White else StudioColors.TextMuted)
+                }
             }
             Spacer(Modifier.width(6.dp))
             // Settings
@@ -171,66 +175,10 @@ fun MainScreen(navController: NavController, vm: AudioViewModel = hiltViewModel(
         }
 
         if (selectedTab == 0) {
-        // Master bypass toggle
-        if (status.isRunning) {
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .clickable { vm.setMasterBypass(!bypass) }
-                    .background(if (bypass) StudioColors.MeterAmber.copy(alpha = 0.1f) else Color.Transparent,
-                        RoundedCornerShape(6.dp))
-                    .border(1.dp,
-                        if (bypass) StudioColors.MeterAmber else StudioColors.Border,
-                        RoundedCornerShape(6.dp))
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("MASTER BYPASS", style = MaterialTheme.typography.labelSmall,
-                    color = if (bypass) StudioColors.MeterAmber else StudioColors.TextMuted,
-                    letterSpacing = 1.sp)
-                Switch(checked = bypass, onCheckedChange = { vm.setMasterBypass(it) },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = StudioColors.MeterAmber,
-                        checkedTrackColor = StudioColors.MeterAmber.copy(alpha = 0.3f),
-                    ))
-            }
-        }
-
-
-        // Monitor output toggle (hear yourself)
-        if (status.isRunning) {
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column {
-                    Text(
-                        "Monitor Output",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = StudioColors.TextPrimary,
-                        letterSpacing = 1.sp,
-                    )
-                    Text(
-                        if (monitoring) "Hearing yourself" else "Воспроизведение выключено",
-                        fontSize = 10.sp,
-                        color = StudioColors.TextMuted,
-                    )
-                }
-                Switch(
-                    checked = monitoring,
-                    onCheckedChange = { vm.setMonitoring(it) },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor   = Color.White,
-                        checkedTrackColor   = StudioColors.Accent,
-                        uncheckedTrackColor = StudioColors.Border,
-                    ),
-                )
-            }
-        }
+        AudioToggleRow("Обработка голоса", !bypass,
+            if (bypass) "Эффекты выключены" else "Эффекты включены") { vm.setMasterBypass(!it) }
+        AudioToggleRow("Слышать звук MicUp", monitoring,
+            if (monitoring) "Воспроизведение включено" else "Воспроизведение выключено", vm::setMonitoring)
 
         Surface(
             modifier = Modifier.fillMaxWidth(),
@@ -243,13 +191,18 @@ fun MainScreen(navController: NavController, vm: AudioViewModel = hiltViewModel(
                     0f..36f, " dB")
                 Text("0 dB = normal · +36 dB ≈ 63×. Lower boost if audio distorts.",
                     fontSize = 10.sp, color = StudioColors.TextMuted)
-                TextButton(onClick = { vm.setMicrophoneGain(0f) }) { Text("Reset boost") }
+                TextButton(onClick = { vm.setMicrophoneGain(0f) }) { Text("Сбросить усиление микрофона") }
             }
         }
 
         ControlPanel("Динамики и воспроизведение") {
+            PlaybackModeSelector(tier, vm::selectPlaybackTier)
+            Text(if (tier == VirtualMicTier.VOIP_STREAM) "Активный системный регулятор: разговорный звук / VoIP"
+                else "Активный системный регулятор: музыка / видео",
+                fontSize = 11.sp, color = StudioColors.Accent)
             ParamSlider("Громкость MicUp", monitorVolume * 100f, { vm.setMonitorVolume(it / 100f) },
                 0f..100f, " %")
+            SpeakerBoostControl(speakerBoost, vm::setSpeakerBoost)
             ParamSlider("Музыка / видео на телефоне", deviceVolumes.media.toFloat(),
                 { vm.setDeviceMediaVolume(it.roundToInt()) }, 0f..deviceVolumes.mediaMax.coerceAtLeast(1).toFloat(),
                 steps = (deviceVolumes.mediaMax - 1).coerceAtLeast(0),

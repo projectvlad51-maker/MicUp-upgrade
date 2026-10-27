@@ -235,7 +235,7 @@ oboe::DataCallbackResult AudioEngine::onAudioReady(
     }
 
     // Process external plugins
-    if (pluginHost_) {
+    if (pluginHost_ && !params_.masterBypass.load(std::memory_order_relaxed)) {
         pluginHost_->process(out, numFrames, sampleRate_);
     }
 

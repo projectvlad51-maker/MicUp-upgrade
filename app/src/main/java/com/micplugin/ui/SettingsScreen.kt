@@ -152,6 +152,7 @@ fun SettingsScreen(navController: NavController, vm: AudioViewModel = hiltViewMo
 
             // ── Plugins ───────────────────────────────────────────────────────
             SettingsSection("Plugins") {
+                SettingsActionRow("Доступ к папкам плагинов", Icons.Default.Folder) { vm.openPluginStorageSettings(context) }
                 SettingsActionRow("Manage Plugin Paths", Icons.Default.FolderOpen) { navController.navigate("plugin_paths") }
                 SettingsActionRow("Rescan Plugin Directories", Icons.Default.Refresh) { vm.rescan() }
             }

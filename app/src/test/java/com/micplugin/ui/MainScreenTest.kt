@@ -107,4 +107,63 @@ class MainScreenTest {
         }
     }
 
+
+    @Test fun processingAndPlaybackSwitchesControlTheirOwnFunctions() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        lateinit var vm: AudioViewModel
+        compose.runOnIdle { vm = createViewModel(context, ShizukuManager()) }
+        compose.setContent { MicPluginTheme { MainScreen(rememberNavController(), vm) } }
+        compose.onNodeWithText("Обработка голоса").performScrollTo().assertIsOn().performClick().assertIsOff()
+        compose.runOnIdle { assertEquals(true, vm.masterBypass.value); assertEquals(true, vm.monitoringEnabled.value) }
+        compose.onNodeWithText("Слышать звук MicUp").performScrollTo().performClick().assertIsOff()
+        compose.runOnIdle { assertEquals(false, vm.monitoringEnabled.value); assertEquals(true, vm.masterBypass.value) }
+        compose.onNodeWithText("Обработка голоса").performScrollTo().performClick().assertIsOn()
+        compose.runOnIdle { assertEquals(false, vm.masterBypass.value); assertEquals(false, vm.monitoringEnabled.value) }
+    }
+
+    @Test fun mediaAndVoipButtonsChooseMatchingPlaybackRoute() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        lateinit var vm: AudioViewModel
+        compose.runOnIdle { vm = createViewModel(context, ShizukuManager()) }
+        compose.setContent { MicPluginTheme { MainScreen(rememberNavController(), vm) } }
+        compose.onNodeWithText("Связь / VoIP").performScrollTo().performClick().assertIsSelected()
+        compose.runOnIdle { assertEquals(VirtualMicTier.VOIP_STREAM, vm.virtualMicTier.value) }
+        compose.onNodeWithText("Медиа / динамики").performScrollTo().performClick().assertIsSelected()
+        compose.runOnIdle { assertEquals(VirtualMicTier.MEDIA_PROJECTION, vm.virtualMicTier.value) }
+    }
+
+    @Test fun resetSpeakerBoostDoesNotResetMicrophoneGain() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        lateinit var vm: AudioViewModel
+        compose.runOnIdle {
+            vm = createViewModel(context, ShizukuManager())
+            vm.setMicrophoneGain(12f)
+            vm.setSpeakerBoost(18f)
+        }
+        compose.setContent { MicPluginTheme { MainScreen(rememberNavController(), vm) } }
+        compose.onNodeWithText("Сбросить усиление вывода").performScrollTo().performClick()
+        compose.runOnIdle {
+            assertEquals(0f, vm.speakerBoostState.value.gainDb)
+            assertEquals(12f, vm.microphoneGainDb.value)
+            assertEquals(0f, context.getSharedPreferences("micup_prefs", Context.MODE_PRIVATE)
+                .getFloat("speaker_boost_db", -1f))
+        }
+    }
+
+
+    @Test fun pluginStorageButtonOpensAndroidSettingsInsteadOfShizuku() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        lateinit var vm: AudioViewModel
+        compose.runOnIdle { vm = createViewModel(context, ShizukuManager()) }
+        val app = org.robolectric.Shadows.shadowOf(context as android.app.Application)
+        while (app.nextStartedActivity != null) { }
+        compose.setContent { MicPluginTheme { SettingsScreen(rememberNavController(), vm) } }
+        compose.onNodeWithText("Доступ к папкам плагинов").performScrollTo().performClick()
+        compose.runOnIdle {
+            val intent = app.nextStartedActivity
+            assertEquals(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, intent.action)
+            assertEquals("package:" + context.packageName, intent.data.toString())
+        }
+    }
+
 }

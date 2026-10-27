@@ -2,6 +2,8 @@ package com.micplugin.ui
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -472,4 +474,49 @@ internal fun ShizukuConnectionRow(
             TextButton(onClick = onConnect) { Text(action) }
         }
     }
+}
+
+
+@Composable
+internal fun AudioToggleRow(label: String, checked: Boolean, hint: String, onChange: (Boolean) -> Unit) {
+    Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp), color = StudioColors.Card) {
+        Row(Modifier.toggleable(value = checked, role = Role.Switch, onValueChange = onChange)
+            .padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(label, color = StudioColors.TextPrimary, style = MaterialTheme.typography.bodyMedium)
+                Text(hint, color = StudioColors.TextMuted, fontSize = 11.sp)
+            }
+            Switch(checked = checked, onCheckedChange = null)
+        }
+    }
+}
+
+@Composable
+internal fun PlaybackModeSelector(tier: com.micplugin.service.VirtualMicTier,
+    onSelect: (com.micplugin.service.VirtualMicTier) -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FilterChip(selected = tier == com.micplugin.service.VirtualMicTier.MEDIA_PROJECTION,
+            onClick = { onSelect(com.micplugin.service.VirtualMicTier.MEDIA_PROJECTION) },
+            label = { Text("Медиа / динамики") })
+        FilterChip(selected = tier == com.micplugin.service.VirtualMicTier.VOIP_STREAM,
+            onClick = { onSelect(com.micplugin.service.VirtualMicTier.VOIP_STREAM) },
+            label = { Text("Связь / VoIP") })
+    }
+}
+
+@Composable
+internal fun SpeakerBoostControl(state: com.micplugin.service.SpeakerBoostState,
+    onGainChange: (Float) -> Unit) {
+    ParamSlider("Усиление вывода MicUp", state.gainDb, onGainChange, 0f..24f, " dB")
+    Text("Действует на выбранный выход MicUp. При искажениях уменьшите усиление.",
+        color = StudioColors.TextMuted, fontSize = 11.sp)
+    val status = when {
+        state.gainDb == 0f -> "Усиление выключено"
+        state.available == false -> state.error ?: "Усиление недоступно на устройстве"
+        state.active -> "Усилитель включён"
+        else -> "Для усиления запустите звук MicUp"
+    }
+    Text(status, color = if (state.gainDb > 0 && state.available == false)
+        StudioColors.MeterAmber else StudioColors.TextMuted, fontSize = 11.sp)
+    TextButton(onClick = { onGainChange(0f) }) { Text("Сбросить усиление вывода") }
 }

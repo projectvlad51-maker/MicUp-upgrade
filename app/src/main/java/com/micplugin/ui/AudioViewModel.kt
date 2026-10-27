@@ -88,6 +88,14 @@ class AudioViewModel @Inject constructor(
     fun setDeviceMediaVolume(value: Int) = deviceVolumeController.setMedia(value)
     fun setDeviceCallVolume(value: Int) = deviceVolumeController.setCall(value)
 
+    val speakerBoostState = SoftwareLoopback.speakerBoostState
+    fun setSpeakerBoost(db: Float) {
+        val boost = if (db.isFinite()) db.coerceIn(0f, 24f) else 0f
+        SoftwareLoopback.setSpeakerBoost(boost)
+        context.getSharedPreferences("micup_prefs", Context.MODE_PRIVATE).edit()
+            .putFloat("speaker_boost_db", boost).apply()
+    }
+
     private val _monitorVolume = MutableStateFlow(1f)
     val monitorVolume: StateFlow<Float> = _monitorVolume
     fun setMonitorVolume(value: Float) {
@@ -142,6 +150,7 @@ class AudioViewModel @Inject constructor(
     init {
         val prefs = context.getSharedPreferences("micup_prefs", Context.MODE_PRIVATE)
         setMonitorVolume(prefs.getFloat("monitor_volume", 1f))
+        setSpeakerBoost(prefs.getFloat("speaker_boost_db", 0f))
         setVoiceFilters(VoiceFilterState(prefs.getBoolean("high_pass_enabled", false),
             prefs.getFloat("high_pass_hz", 80f), prefs.getBoolean("low_pass_enabled", false),
             prefs.getFloat("low_pass_hz", 12000f)))
@@ -156,6 +165,13 @@ class AudioViewModel @Inject constructor(
         if (engineStatus.value.isRunning) {
             com.micplugin.service.AudioProcessingService.stop(context)
         } else {
+            var owner: Context = context
+            while (owner is android.content.ContextWrapper) {
+                if (owner is com.micplugin.MainActivity) { owner.requestAudioStart(); return }
+                val next = owner.baseContext
+                if (next === owner) break
+                owner = next
+            }
             com.micplugin.service.AudioProcessingService.start(context)
         }
     }
@@ -359,6 +375,20 @@ class AudioViewModel @Inject constructor(
                     "Откройте Shizuku вручную: разрешите доступ MicUp и запустите сервис",
                     android.widget.Toast.LENGTH_LONG).show()
             }
+        }
+    }
+
+    fun openPluginStorageSettings(context: Context) {
+        val action = if (android.os.Build.VERSION.SDK_INT >= 30)
+            android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION
+            else android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+        try {
+            context.startActivity(android.content.Intent(action,
+                android.net.Uri.parse("package:" + context.packageName))
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+        } catch (_: android.content.ActivityNotFoundException) {
+            android.widget.Toast.makeText(context, "Откройте разрешения MicUp в настройках Android",
+                android.widget.Toast.LENGTH_LONG).show()
         }
     }
 
